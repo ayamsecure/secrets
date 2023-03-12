@@ -38,10 +38,10 @@ RUN git fetch --depth 1 origin "${VAULT_VERSION}"
 RUN git -c advice.detachedHead=false checkout FETCH_HEAD
 
 COPY --chown=node:node patches /patches
-COPY --chown=node:node resources /resources
-COPY --chown=node:node scripts/apply_patches.sh /apply_patches.sh
+COPY --chown=node:node ayamsecure-logos /ayamsecure-logos
+COPY --chown=node:node scripts/apply_patches_ayam.sh /apply_patches_ayam.sh
 
-RUN bash /apply_patches.sh
+RUN bash /apply_patches_ayam.sh
 
 # Build
 RUN npm ci

@@ -38,7 +38,7 @@ full: checkout patch-web-vault build tar
 .PHONY: full
 
 docker:
-	docker build -t bw_web_vault .
+	docker build --no-cache -t bw_web_vault .
 .PHONY: docker
 
 docker-extract: docker

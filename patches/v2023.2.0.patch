@@ -7,7 +7,7 @@ index 5a650b3673..275c34f726 100644
          <div class="row align-items-center">
            <div class="col brand">
 -            <i class="bwi bwi-shield"></i>&nbsp; <strong>bit</strong>warden
-+            <i class="bwi bwi-shield"></i>&nbsp; <strong>Vault</strong>warden
++            <i class="bwi bwi-shield"></i>&nbsp; <strong>Ayam Secure Secrets</strong>
            </div>
          </div>
        </div>
@@ -19,11 +19,11 @@ index 5a650b3673..275c34f726 100644
 -        <a href="https://status.bitwarden.com/">status page</a> or
 -        <a href="https://bitwarden.com/contact/">contact us</a>.
 +        You can <a href="/">return to the web vault</a>, or
-+        <a href="https://github.com/dani-garcia/vaultwarden">contact us</a>.
++        <a href="https://ayamsecure.com">contact us</a>.
        </p>
      </div>
 -    <div class="container footer text-muted content">© Copyright 2023 Bitwarden, Inc.</div>
-+    <div class="container footer text-muted content">Vaultwarden (unofficial Bitwarden&reg; server)</div>
++    <div class="container footer text-muted content">Ayam Secure Secrets (powered by Bitwarden&reg;)</div>
    </body>
  </html>
 diff --git a/apps/web/src/app/app.component.ts b/apps/web/src/app/app.component.ts
@@ -36,7 +36,7 @@ index b9dac0c6db..e7b84133eb 100644
            case "showToast":
 +            if (typeof message.text === "string" && typeof crypto.subtle === 'undefined') {
 +              message.title="This browser requires HTTPS to use the web vault";
-+              message.text="Check the Vaultwarden wiki for details on how to enable it";
++              message.text="Check the Ayam Secure Docs for details on how to enable it";
 +            }
              this.showToast(message);
              break;
@@ -80,7 +80,7 @@ index aa9041875a..6809363759 100644
          this.currentUrl = event.url;
  
 -        let title = i18nService.t("pageTitle", "Bitwarden");
-+        let title = i18nService.t("pageTitle", "Vaultwarden");
++        let title = i18nService.t("pageTitle", "Ayam Secure Secrets");
          let child = this.activatedRoute.firstChild;
          while (child.firstChild) {
            child = child.firstChild;
@@ -115,7 +115,7 @@ index 98836bfd5d..1239167c43 100644
  <div class="container footer text-muted">
    <div class="row">
 -    <div class="col">&copy; {{ year }} Bitwarden Inc.</div>
-+    <div class="col">Vaultwarden (unofficial Bitwarden&reg; server)</div>
++    <div class="col">Ayam Secure Secrets (powered by Bitwarden&reg;)</div>
      <div class="col text-center"></div>
      <div class="col text-right">
        {{ "versionNumber" | i18n: version }}
@@ -127,7 +127,7 @@ index d737bc9f02..6a312c0b1f 100644
  <router-outlet></router-outlet>
  <div class="container my-5 text-muted text-center">
 -  &copy; {{ year }} Bitwarden Inc. <br />
-+  Vaultwarden (unofficial Bitwarden&reg; server)<br />
++  Ayam Secure Secrets (powered by Bitwarden&reg;)<br />
    {{ "versionNumber" | i18n: version }}
  </div>
 diff --git a/apps/web/src/app/layouts/navbar.component.html b/apps/web/src/app/layouts/navbar.component.html
@@ -139,7 +139,7 @@ index ff96e851a4..111261b2e3 100644
  <nav class="navbar navbar-expand navbar-dark" [ngClass]="{ 'nav-background-alt': selfHosted }">
    <div class="container">
 -    <a class="navbar-brand" routerLink="/" appA11yTitle="{{ 'pageTitle' | i18n: 'Bitwarden' }}">
-+    <a class="navbar-brand" routerLink="/" appA11yTitle="{{ 'pageTitle' | i18n: 'Vaultwarden' }}">
++    <a class="navbar-brand" routerLink="/" appA11yTitle="{{ 'pageTitle' | i18n: 'Ayam Secure Secrets' }}">
        <i class="bwi bwi-shield" aria-hidden="true"></i>
      </a>
      <div class="collapse navbar-collapse">
@@ -148,7 +148,7 @@ index ff96e851a4..111261b2e3 100644
                {{ "accountSettings" | i18n }}
              </a>
 -            <a bitMenuItem href="https://bitwarden.com/help/" target="_blank" rel="noopener">
-+            <a bitMenuItem href="https://github.com/dani-garcia/vaultwarden/" target="_blank" rel="noopener">
++            <a bitMenuItem href="https://ayamsecure.com" target="_blank" rel="noopener">
                <i class="bwi bwi-fw bwi-question-circle" aria-hidden="true"></i>
                {{ "getHelp" | i18n }}
              </a>
@@ -253,12 +253,12 @@ index 90825f98be..a5f314b319 100644
          element: document.getElementById("qr"),
          value:
 -          "otpauth://totp/Bitwarden:" +
-+          "otpauth://totp/Vaultwarden:" +
++          "otpauth://totp/AyamSecureSecrets:" +
            Utils.encodeRFC3986URIComponent(email) +
            "?secret=" +
            encodeURIComponent(this.key) +
 -          "&issuer=Bitwarden",
-+          "&issuer=Vaultwarden",
++          "&issuer=AyamSecureSecrets",
          size: 160,
        });
      }, 100);
@@ -284,7 +284,7 @@ index 63d4e72c09..68b6ada007 100644
      <meta name="theme-color" content="#175DDC" />
  
 -    <title page-title>Bitwarden Web Vault</title>
-+    <title page-title>Vaultwarden Web Vault</title>
++    <title page-title>Ayam Secure Secrets Web Vault</title>
  
      <link rel="apple-touch-icon" sizes="180x180" href="images/icons/apple-touch-icon.png" />
      <link rel="icon" type="image/png" sizes="32x32" href="images/icons/favicon-32x32.png" />
@@ -295,7 +295,7 @@ index 92a1204c60..5a10dc9ae9 100644
 @@ -1,5 +1,5 @@
  {
 -  "name": "Bitwarden Vault",
-+  "name": "Vaultwarden Web Vault",
++  "name": "Ayam Secure Secrets Web Vault",
    "icons": [
      {
        "src": "images/icons/android-chrome-192x192.png",
@@ -422,7 +422,7 @@ index 70bff04cc3..6e7a59a27e 100644
 +      this.platformUtilsService.showToast(
 +        "error",
 +        "This browser requires HTTPS to use the web vault",
-+        "Check the Vaultwarden wiki for details on how to enable it"
++        "Check the Ayam Secure Secrets Docs for details on how to enable it"
 +      );
 +      return;
 +    }

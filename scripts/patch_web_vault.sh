@@ -16,7 +16,7 @@ trap 'handle_error $LINENO $?' ERR
 pushd "${VAULT_FOLDER}"
 
 # Apply a patch from the patches directory
-# shellcheck source=apply_patches.sh
-. "${BASEDIR}/apply_patches.sh"
+# shellcheck source=apply_patches_ayam.sh
+. "${BASEDIR}/apply_patches_ayam.sh"
 
 popd
