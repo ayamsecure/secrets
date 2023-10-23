@@ -1,4 +1,18 @@
 <main class="container-xl">
+
+    <div id="inviteUserFormBlock" class="align-items-center p-3 mb-3 text-white-50 bg-secondary rounded shadow">
+        <div>
+            <h6 class="mb-0 text-white">Invite User</h6>
+            <small>Email:</small>
+    
+            <form class="form-inline input-group w-50" id="inviteUserForm">
+                <input type="email" class="form-control me-2" id="inviteEmail" placeholder="Enter email" required
+                    spellcheck="false">
+                <button type="submit" class="btn btn-primary">Invite</button>
+            </form>
+        </div>
+    </div>
+
     <div id="users-block" class="my-3 p-3 bg-white rounded shadow">
         <h6 class="border-bottom pb-2 mb-3">Registered Users</h6>
         <div class="table-responsive-xl small">
@@ -93,18 +107,6 @@
         </div>
     </div>
 
-    <div id="inviteUserFormBlock" class="align-items-center p-3 mb-3 text-white-50 bg-secondary rounded shadow">
-        <div>
-            <h6 class="mb-0 text-white">Invite User</h6>
-            <small>Email:</small>
-
-            <form class="form-inline input-group w-50" id="inviteUserForm">
-                <input type="email" class="form-control me-2" id="inviteEmail" placeholder="Enter email" required spellcheck="false">
-                <button type="submit" class="btn btn-primary">Invite</button>
-            </form>
-        </div>
-    </div>
-
     <div id="userOrgTypeDialog" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-sm">
             <div class="modal-content">
@@ -137,6 +139,7 @@
             </div>
         </div>
     </div>
+    
 </main>
 
 <link rel="stylesheet" href="{{urlpath}}/vw_static/datatables.css" />
