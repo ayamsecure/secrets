@@ -15,6 +15,7 @@ table! {
         updated_at -> Timestamp,
         user_uuid -> Nullable<Text>,
         organization_uuid -> Nullable<Text>,
+        key -> Nullable<Text>,
         atype -> Integer,
         name -> Text,
         notes -> Nullable<Text>,
@@ -228,6 +229,7 @@ table! {
         status -> Integer,
         atype -> Integer,
         reset_password_key -> Nullable<Text>,
+        external_id -> Nullable<Text>,
     }
 }
 
@@ -297,8 +299,8 @@ table! {
         response_device_id -> Nullable<Text>,
         access_code -> Text,
         public_key -> Text,
-        enc_key -> Text,
-        master_password_hash -> Text,
+        enc_key -> Nullable<Text>,
+        master_password_hash -> Nullable<Text>,
         approved -> Nullable<Bool>,
         creation_date -> Timestamp,
         response_date -> Nullable<Timestamp>,

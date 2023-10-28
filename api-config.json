@@ -1,0 +1,17 @@
+{
+  "environment": {
+    "api": "https://secrets.ayamsecure.com/api",
+    "identity": "https://secrets.ayamsecure.com/identity",
+    "notifications": "https://secrets.ayamsecure.com/notifications",
+    "sso": "",
+    "vault": "https://secrets.ayamsecure.com"
+  },
+  "featureStates": { "autofill-v2": true },
+  "gitHash": null,
+  "object": "config",
+  "server": {
+    "name": "Vaultwarden",
+    "url": "https://github.com/dani-garcia/vaultwarden"
+  },
+  "version": "2023.9.1"
+}

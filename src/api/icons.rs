@@ -534,11 +534,11 @@ async fn get_icon_url(domain: &str) -> Result<IconUrlResult, Error> {
     let mut referer = String::new();
 
     if let Ok(content) = resp {
-        // Extract the URL from the respose in case redirects occured (like @ gitlab.com)
+        // Extract the URL from the response in case redirects occurred (like @ gitlab.com)
         let url = content.url().clone();
 
         // Set the referer to be used on the final request, some sites check this.
-        // Mostly used to prevent direct linking and other security resons.
+        // Mostly used to prevent direct linking and other security reasons.
         referer = url.to_string();
 
         // Add the fallback favicon.ico and apple-touch-icon.png to the list with the domain the content responded from.
@@ -638,7 +638,7 @@ fn get_icon_priority(href: &str, sizes: &str) -> u8 {
     }
 }
 
-/// Returns a Tuple with the width and hight as a seperate value extracted from the sizes attribute
+/// Returns a Tuple with the width and height as a separate value extracted from the sizes attribute
 /// It will return 0 for both values if no match has been found.
 ///
 /// # Arguments
@@ -685,7 +685,9 @@ async fn download_icon(domain: &str) -> Result<(Bytes, Option<&str>), Error> {
 
     for icon in icon_result.iconlist.iter().take(5) {
         if icon.href.starts_with("data:image") {
-            let Ok(datauri) = DataUrl::process(&icon.href) else {continue};
+            let Ok(datauri) = DataUrl::process(&icon.href) else {
+                continue;
+            };
             // Check if we are able to decode the data uri
             let mut body = BytesMut::new();
             match datauri.decode::<_, ()>(|bytes| {
