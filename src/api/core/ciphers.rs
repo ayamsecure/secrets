@@ -10,7 +10,7 @@ use rocket::{
 use serde_json::Value;
 
 use crate::{
-    api::{self, core::log_event, EmptyResult, JsonResult, JsonUpcase, Notify, PasswordData, UpdateType},
+    api::{self, core::log_event, EmptyResult, JsonResult, JsonUpcase, Notify, PasswordOrOtpData, UpdateType},
     auth::Headers,
     crypto,
     db::{models::*, DbConn, DbPool},
@@ -212,8 +212,7 @@ pub struct CipherData {
     Login = 1,
     SecureNote = 2,
     Card = 3,
-    Identity = 4,
-    Fido2Key = 5
+    Identity = 4
     */
     pub Type: i32,
     pub Name: String,
@@ -225,7 +224,6 @@ pub struct CipherData {
     SecureNote: Option<Value>,
     Card: Option<Value>,
     Identity: Option<Value>,
-    Fido2Key: Option<Value>,
 
     Favorite: Option<bool>,
     Reprompt: Option<i32>,
@@ -361,14 +359,17 @@ pub async fn update_cipher_from_data(
     enforce_personal_ownership_policy(Some(&data), headers, conn).await?;
 
     // Check that the client isn't updating an existing cipher with stale data.
-    if let Some(dt) = data.LastKnownRevisionDate {
-        match NaiveDateTime::parse_from_str(&dt, "%+") {
-            // ISO 8601 format
-            Err(err) => warn!("Error parsing LastKnownRevisionDate '{}': {}", dt, err),
-            Ok(dt) if cipher.updated_at.signed_duration_since(dt).num_seconds() > 1 => {
-                err!("The client copy of this cipher is out of date. Resync the client and try again.")
+    // And only perform this check when not importing ciphers, else the date/time check will fail.
+    if ut != UpdateType::None {
+        if let Some(dt) = data.LastKnownRevisionDate {
+            match NaiveDateTime::parse_from_str(&dt, "%+") {
+                // ISO 8601 format
+                Err(err) => warn!("Error parsing LastKnownRevisionDate '{}': {}", dt, err),
+                Ok(dt) if cipher.updated_at.signed_duration_since(dt).num_seconds() > 1 => {
+                    err!("The client copy of this cipher is out of date. Resync the client and try again.")
+                }
+                Ok(_) => (),
             }
-            Ok(_) => (),
         }
     }
 
@@ -468,7 +469,6 @@ pub async fn update_cipher_from_data(
         2 => data.SecureNote,
         3 => data.Card,
         4 => data.Identity,
-        5 => data.Fido2Key,
         _ => err!("Invalid type"),
     };
 
@@ -510,7 +510,7 @@ pub async fn update_cipher_from_data(
                 event_type as i32,
                 &cipher.uuid,
                 org_uuid,
-                headers.user.uuid.clone(),
+                &headers.user.uuid,
                 headers.device.atype,
                 &headers.ip.ip,
                 conn,
@@ -791,7 +791,7 @@ async fn post_collections_admin(
         EventType::CipherUpdatedCollections as i32,
         &cipher.uuid,
         &cipher.organization_uuid.unwrap(),
-        headers.user.uuid.clone(),
+        &headers.user.uuid,
         headers.device.atype,
         &headers.ip.ip,
         &mut conn,
@@ -849,7 +849,6 @@ async fn put_cipher_share_selected(
     nt: Notify<'_>,
 ) -> EmptyResult {
     let mut data: ShareSelectedCipherData = data.into_inner().data;
-    let mut cipher_ids: Vec<String> = Vec::new();
 
     if data.Ciphers.is_empty() {
         err!("You must select at least one cipher.")
@@ -860,10 +859,9 @@ async fn put_cipher_share_selected(
     }
 
     for cipher in data.Ciphers.iter() {
-        match cipher.Id {
-            Some(ref id) => cipher_ids.push(id.to_string()),
-            None => err!("Request missing ids field"),
-        };
+        if cipher.Id.is_none() {
+            err!("Request missing ids field")
+        }
     }
 
     while let Some(cipher) = data.Ciphers.pop() {
@@ -1147,7 +1145,7 @@ async fn save_attachment(
             EventType::CipherAttachmentCreated as i32,
             &cipher.uuid,
             org_uuid,
-            headers.user.uuid.clone(),
+            &headers.user.uuid,
             headers.device.atype,
             &headers.ip.ip,
             &mut conn,
@@ -1457,19 +1455,15 @@ struct OrganizationId {
 #[post("/ciphers/purge?<organization..>", data = "<data>")]
 async fn delete_all(
     organization: Option<OrganizationId>,
-    data: JsonUpcase<PasswordData>,
+    data: JsonUpcase<PasswordOrOtpData>,
     headers: Headers,
     mut conn: DbConn,
     nt: Notify<'_>,
 ) -> EmptyResult {
-    let data: PasswordData = data.into_inner().data;
-    let password_hash = data.MasterPasswordHash;
-
+    let data: PasswordOrOtpData = data.into_inner().data;
     let mut user = headers.user;
 
-    if !user.check_valid_password(&password_hash) {
-        err!("Invalid password")
-    }
+    data.validate(&user, true, &mut conn).await?;
 
     match organization {
         Some(org_data) => {
@@ -1485,7 +1479,7 @@ async fn delete_all(
                             EventType::OrganizationPurgedVault as i32,
                             &org_data.org_id,
                             &org_data.org_id,
-                            user.uuid,
+                            &user.uuid,
                             headers.device.atype,
                             &headers.ip.ip,
                             &mut conn,
@@ -1566,16 +1560,8 @@ async fn _delete_cipher_by_uuid(
             false => EventType::CipherDeleted as i32,
         };
 
-        log_event(
-            event_type,
-            &cipher.uuid,
-            &org_uuid,
-            headers.user.uuid.clone(),
-            headers.device.atype,
-            &headers.ip.ip,
-            conn,
-        )
-        .await;
+        log_event(event_type, &cipher.uuid, &org_uuid, &headers.user.uuid, headers.device.atype, &headers.ip.ip, conn)
+            .await;
     }
 
     Ok(())
@@ -1635,7 +1621,7 @@ async fn _restore_cipher_by_uuid(uuid: &str, headers: &Headers, conn: &mut DbCon
             EventType::CipherRestored as i32,
             &cipher.uuid.clone(),
             org_uuid,
-            headers.user.uuid.clone(),
+            &headers.user.uuid,
             headers.device.atype,
             &headers.ip.ip,
             conn,
@@ -1719,7 +1705,7 @@ async fn _delete_cipher_attachment_by_id(
             EventType::CipherAttachmentDeleted as i32,
             &cipher.uuid,
             &org_uuid,
-            headers.user.uuid.clone(),
+            &headers.user.uuid,
             headers.device.atype,
             &headers.ip.ip,
             conn,

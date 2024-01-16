@@ -29,8 +29,7 @@ db_object! {
         Login = 1,
         SecureNote = 2,
         Card = 3,
-        Identity = 4,
-        Fido2key = 5
+        Identity = 4
         */
         pub atype: i32,
         pub name: String,
@@ -229,7 +228,6 @@ impl Cipher {
             "SecureNote": null,
             "Card": null,
             "Identity": null,
-            "Fido2Key": null,
         });
 
         // These values are only needed for user/default syncs
@@ -258,7 +256,6 @@ impl Cipher {
             2 => "SecureNote",
             3 => "Card",
             4 => "Identity",
-            5 => "Fido2Key",
             _ => panic!("Wrong type"),
         };
 
@@ -276,7 +273,16 @@ impl Cipher {
             None => {
                 // Belongs to Organization, need to update affected users
                 if let Some(ref org_uuid) = self.organization_uuid {
-                    for user_org in UserOrganization::find_by_cipher_and_org(&self.uuid, org_uuid, conn).await.iter() {
+                    // users having access to the collection
+                    let mut collection_users =
+                        UserOrganization::find_by_cipher_and_org(&self.uuid, org_uuid, conn).await;
+                    if CONFIG.org_groups_enabled() {
+                        // members of a group having access to the collection
+                        let group_users =
+                            UserOrganization::find_by_cipher_and_org_with_group(&self.uuid, org_uuid, conn).await;
+                        collection_users.extend(group_users);
+                    }
+                    for user_org in collection_users {
                         User::update_uuid_revision(&user_org.user_uuid, conn).await;
                         user_uuids.push(user_org.user_uuid.clone())
                     }

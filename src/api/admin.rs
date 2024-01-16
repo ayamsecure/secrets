@@ -13,7 +13,10 @@ use rocket::{
 };
 
 use crate::{
-    api::{core::log_event, unregister_push_device, ApiResult, EmptyResult, JsonResult, Notify, NumberOrString},
+    api::{
+        core::{log_event, two_factor},
+        unregister_push_device, ApiResult, EmptyResult, JsonResult, Notify, NumberOrString,
+    },
     auth::{decode_admin, encode_jwt, generate_admin_claims, ClientIp},
     config::ConfigBuilder,
     db::{backup_database, get_sql_server_version, models::*, DbConn, DbConnType},
@@ -184,12 +187,11 @@ fn post_admin_login(data: Form<LoginForm>, cookies: &CookieJar<'_>, ip: ClientIp
         let claims = generate_admin_claims();
         let jwt = encode_jwt(&claims);
 
-        let cookie = Cookie::build(COOKIE_NAME, jwt)
+        let cookie = Cookie::build((COOKIE_NAME, jwt))
             .path(admin_path())
             .max_age(rocket::time::Duration::minutes(CONFIG.admin_session_lifetime()))
             .same_site(SameSite::Strict)
-            .http_only(true)
-            .finish();
+            .http_only(true);
 
         cookies.add(cookie);
         if let Some(redirect) = redirect {
@@ -313,7 +315,7 @@ async fn test_smtp(data: Json<InviteData>, _token: AdminToken) -> EmptyResult {
 
 #[get("/logout")]
 fn logout(cookies: &CookieJar<'_>) -> Redirect {
-    cookies.remove(Cookie::build(COOKIE_NAME, "").path(admin_path()).finish());
+    cookies.remove(Cookie::build(COOKIE_NAME).path(admin_path()));
     Redirect::to(admin_path())
 }
 
@@ -391,7 +393,7 @@ async fn delete_user(uuid: &str, token: AdminToken, mut conn: DbConn) -> EmptyRe
             EventType::OrganizationUserRemoved as i32,
             &user_org.uuid,
             &user_org.org_uuid,
-            String::from(ACTING_ADMIN_USER),
+            ACTING_ADMIN_USER,
             14, // Use UnknownBrowser type
             &token.ip.ip,
             &mut conn,
@@ -446,9 +448,10 @@ async fn enable_user(uuid: &str, _token: AdminToken, mut conn: DbConn) -> EmptyR
 }
 
 #[post("/users/<uuid>/remove-2fa")]
-async fn remove_2fa(uuid: &str, _token: AdminToken, mut conn: DbConn) -> EmptyResult {
+async fn remove_2fa(uuid: &str, token: AdminToken, mut conn: DbConn) -> EmptyResult {
     let mut user = get_user_or_404(uuid, &mut conn).await?;
     TwoFactor::delete_all_by_user(&user.uuid, &mut conn).await?;
+    two_factor::enforce_2fa_policy(&user, ACTING_ADMIN_USER, 14, &token.ip.ip, &mut conn).await?;
     user.totp_recover = None;
     user.save(&mut conn).await
 }
@@ -518,7 +521,7 @@ async fn update_user_org_type(data: Json<UserOrgTypeData>, token: AdminToken, mu
         EventType::OrganizationUserUpdated as i32,
         &user_to_edit.uuid,
         &data.org_uuid,
-        String::from(ACTING_ADMIN_USER),
+        ACTING_ADMIN_USER,
         14, // Use UnknownBrowser type
         &token.ip.ip,
         &mut conn,
@@ -786,16 +789,16 @@ impl<'r> FromRequest<'r> for AdminToken {
                     if requested_page.is_empty() {
                         return Outcome::Forward(Status::Unauthorized);
                     } else {
-                        return Outcome::Failure((Status::Unauthorized, "Unauthorized"));
+                        return Outcome::Error((Status::Unauthorized, "Unauthorized"));
                     }
                 }
             };
 
             if decode_admin(access_token).is_err() {
                 // Remove admin cookie
-                cookies.remove(Cookie::build(COOKIE_NAME, "").path(admin_path()).finish());
+                cookies.remove(Cookie::build(COOKIE_NAME).path(admin_path()));
                 error!("Invalid or expired admin JWT. IP: {}.", &ip.ip);
-                return Outcome::Failure((Status::Unauthorized, "Session expired"));
+                return Outcome::Error((Status::Unauthorized, "Session expired"));
             }
 
             Outcome::Success(Self {
