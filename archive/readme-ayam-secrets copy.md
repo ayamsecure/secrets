@@ -28,6 +28,8 @@
 
 - reference this commit for all AS patches: https://github.com/ayamsecure/secrets/commit/71a471745416b3b17bb0452ce0e6b6e71bb4eaaa
 
+/docker/arm64/Dockerfile.alpine, change done just to signal using this file for build
+
 /src/mail.rs
 ln 585 in fn send_email, disable attaching mail-github.png singlePart
 
