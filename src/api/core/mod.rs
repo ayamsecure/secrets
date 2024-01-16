@@ -13,7 +13,6 @@ pub use ciphers::{purge_trashed_ciphers, CipherData, CipherSyncData, CipherSyncT
 pub use emergency_access::{emergency_notification_reminder_job, emergency_request_timeout_job};
 pub use events::{event_cleanup_job, log_event, log_user_event};
 pub use sends::purge_sends;
-pub use two_factor::send_incomplete_2fa_notifications;
 
 pub fn routes() -> Vec<Route> {
     let mut eq_domains_routes = routes![get_eq_domains, post_eq_domains, put_eq_domains];
@@ -47,15 +46,14 @@ pub fn events_routes() -> Vec<Route> {
 //
 // Move this somewhere else
 //
-use rocket::{serde::json::Json, Catcher, Route};
-use serde_json::Value;
+use rocket::{serde::json::Json, serde::json::Value, Catcher, Route};
 
 use crate::{
     api::{JsonResult, JsonUpcase, Notify, UpdateType},
     auth::Headers,
     db::DbConn,
     error::Error,
-    util::get_reqwest_client,
+    util::{get_reqwest_client, parse_experimental_client_feature_flags},
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -193,6 +191,7 @@ fn version() -> Json<&'static str> {
 #[get("/config")]
 fn config() -> Json<Value> {
     let domain = crate::CONFIG.domain();
+    let feature_states = parse_experimental_client_feature_flags(&crate::CONFIG.experimental_client_feature_flags());
     Json(json!({
         // Note: The clients use this version to handle backwards compatibility concerns
         // This means they expect a version that closely matches the Bitwarden server version
@@ -203,7 +202,8 @@ fn config() -> Json<Value> {
         "gitHash": option_env!("GIT_REV"),
         "server": {
           "name": "Vaultwarden",
-          "url": "https://github.com/dani-garcia/vaultwarden"
+          "url": "https://github.com/dani-garcia/vaultwarden",
+          "version": crate::VERSION
         },
         "environment": {
           "vault": domain,
@@ -212,12 +212,7 @@ fn config() -> Json<Value> {
           "notifications": format!("{domain}/notifications"),
           "sso": "",
         },
-        "featureStates": {
-          // Any feature flags that we want the clients to use
-          // Can check the enabled ones at:
-          // https://vault.bitwarden.com/api/config
-          "autofill-v2": true
-        },
+        "featureStates": feature_states,
         "object": "config",
     }))
 }

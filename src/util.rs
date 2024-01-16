@@ -2,6 +2,7 @@
 // Web Headers and caching
 //
 use std::{
+    collections::HashMap,
     io::{Cursor, ErrorKind},
     ops::Deref,
 };
@@ -46,6 +47,7 @@ impl Fairing for AppHeaders {
                     // Remove headers which could cause websocket connection issues
                     res.remove_header("X-Frame-Options");
                     res.remove_header("X-Content-Type-Options");
+                    res.remove_header("Permissions-Policy");
                     return;
                 }
                 (_, _) => (),
@@ -362,15 +364,7 @@ pub fn write_file(path: &str, content: &[u8]) -> Result<(), crate::error::Error>
 }
 
 pub fn delete_file(path: &str) -> IOResult<()> {
-    let res = fs::remove_file(path);
-
-    if let Some(parent) = Path::new(path).parent() {
-        // If the directory isn't empty, this returns an error, which we ignore
-        // We only want to delete the folder if it's empty
-        fs::remove_dir(parent).ok();
-    }
-
-    res
+    fs::remove_file(path)
 }
 
 pub fn get_display_size(size: i32) -> String {
@@ -753,4 +747,12 @@ pub fn convert_json_key_lcase_first(src_json: Value) -> Value {
 
         value => value,
     }
+}
+
+/// Parses the experimental client feature flags string into a HashMap.
+pub fn parse_experimental_client_feature_flags(experimental_client_feature_flags: &str) -> HashMap<String, bool> {
+    let feature_states =
+        experimental_client_feature_flags.to_lowercase().split(',').map(|f| (f.trim().to_owned(), true)).collect();
+
+    feature_states
 }
