@@ -1,37 +1,25 @@
 ## Ayam Secure Secrets forked from Vaultwarden
 
-- docker build -f /Users/jay/codejk/ayam-secrets/docker/arm64/Dockerfile.alpine -t jayknyn/ayam-secure-secrets:1.29.1 .
-- docker push jayknyn/vaultwarden:230312
-- docker push jayknyn/vaultwarden:1.29.1
-- docker push jayknyn/ayam-secure-secrets:1.29.1
+### Alternative implementation of the Bitwarden server API written in Rust and compatible with [upstream Bitwarden clients](https://bitwarden.com/download/)\*, perfect for self-hosted deployment where running the official resource-heavy service might not be ideal.
+
+📢 Note: This project was known as Bitwarden_RS and has been renamed to separate itself from the official Bitwarden server in the hopes of avoiding confusion and trademark/branding issues. Please see [#1642](https://github.com/dani-garcia/vaultwarden/discussions/1642) for more explanation.
 
 ---
 
-### Patching done on vaultwarden/main
+[![Build](https://github.com/dani-garcia/vaultwarden/actions/workflows/build.yml/badge.svg)](https://github.com/dani-garcia/vaultwarden/actions/workflows/build.yml)
+[![ghcr.io](https://img.shields.io/badge/ghcr.io-download-blue)](https://github.com/dani-garcia/vaultwarden/pkgs/container/vaultwarden)
+[![Docker Pulls](https://img.shields.io/docker/pulls/vaultwarden/server.svg)](https://hub.docker.com/r/vaultwarden/server)
+[![Quay.io](https://img.shields.io/badge/Quay.io-download-blue)](https://quay.io/repository/vaultwarden/server)
+[![Dependency Status](https://deps.rs/repo/github/dani-garcia/vaultwarden/status.svg)](https://deps.rs/repo/github/dani-garcia/vaultwarden)
+[![GitHub Release](https://img.shields.io/github/release/dani-garcia/vaultwarden.svg)](https://github.com/dani-garcia/vaultwarden/releases/latest)
+[![AGPL-3.0 Licensed](https://img.shields.io/github/license/dani-garcia/vaultwarden.svg)](https://github.com/dani-garcia/vaultwarden/blob/main/LICENSE.txt)
+[![Matrix Chat](https://img.shields.io/matrix/vaultwarden:matrix.org.svg?logo=matrix)](https://matrix.to/#/#vaultwarden:matrix.org)
 
-/docker/arm64/Dockerfile.alpine, change done just to signal using this file for build
+Image is based on [Rust implementation of Bitwarden API](https://github.com/dani-garcia/vaultwarden).
 
-/src/mail.rs
-ln 585 in fn send_email, disable attaching mail-github.png singlePart
+**This project is not associated with the [Bitwarden](https://bitwarden.com/) project nor Bitwarden, Inc.**
 
-/src/api/web.rs:
-ln 117 in fn static_files, disable mail-github.png
-
-/src/static/images to change:
-
-- logo-gray.png
-- vaultwarden-icon.png
-- vaultwarden-favicon.png
-
-/src/static/templates to change:
-
-- 404.hbs
-
-/src/static/templates/admin to change:
-
-- base.hbs, html title to AS
-
-/email/admin_rest_password.hbs
+#### ⚠️**IMPORTANT**⚠️: When using this server, please report any bugs or suggestions to us directly (look at the bottom of this page for ways to get in touch), regardless of whatever clients you are using (mobile, desktop, browser...). DO NOT use the official support channels.
 
 ---
 
