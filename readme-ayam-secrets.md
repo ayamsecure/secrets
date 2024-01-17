@@ -69,6 +69,14 @@ Notes:
 
 - ln 2 moved Invite User section to top
 
+/src/static/templates/email/change_email.hbs
+
+- ln 3 your web vault
+
+/src/static/templates/email/change_email.html.hbs
+
+- ln 7 your web vault
+
 /src/static/templates/email/email_footer.hbs
 
 - ln 8 and ln 10, font-size: 16px; line-height: 25px;
