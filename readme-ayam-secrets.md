@@ -95,6 +95,18 @@ Notes:
 
 - ln 4 will now appear in your vault
 
+/src/static/templates/email/invite_confirmed.html.hbs
+
+- ln 12 and ln 14 log in to your web vault
+
+/src/static/templates/email/protected_action.hbs
+
+- ln 5 passcode ayamsecure
+
+/src/static/templates/email/protected_action.html.hbs
+
+- ln 12 passcode ayamsecure
+
 /src/static/templates/email/smtp_test.hbs
 
 - ln 1 title ayamsecure
