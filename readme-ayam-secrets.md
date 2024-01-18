@@ -8,8 +8,8 @@
 2. `git checkout main-ayam` then `git merge main` to bring in new changes into main-ayam branch, resolve conflicts (accept incoming for ayam changes), `git add .` then `git commit` to conclude merge and `git push`
 3. from main-ayam branch, create new version branch `git checkout -b 1.30.1`
 4. confirm patches are still applied
-5. use jibhi3 to build image: `docker build -f ./docker/Dockerfile.ayam -t jayknyn/ayam-secure-secrets:1.30.1-2024.1.1 .`
-6. docker login then `docker push jayknyn/ayam-secure-secrets:1.30.1-2024.1.1`
+5. use colima (x86) on optimont to build image: `docker build -f ./docker/Dockerfile.ayam -t jayknyn/ayam-secure-secrets:1.30.1-2024.1.1b .`
+6. docker login then `docker push jayknyn/ayam-secure-secrets:1.30.1-2024.1.1b`
 7. git push changes and after testing on staging service merge into main-ayam via PR
 
 Notes:
