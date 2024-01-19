@@ -18,28 +18,28 @@
 # - From https://hub.docker.com/r/vaultwarden/web-vault/tags,
 #   click the tag name to view the digest of the image it currently points to.
 # - From the command line:
-#     $ docker pull docker.io/vaultwarden/web-vault:v2023.9.1
-#     $ docker image inspect --format "{{.RepoDigests}}" docker.io/vaultwarden/web-vault:v2023.9.1
-#     [docker.io/vaultwarden/web-vault@sha256:ccf76db7406378b36cb937c1a3ca884448e32e7f82effd4d97b335cd725c75fd]
+#     $ docker pull docker.io/vaultwarden/web-vault:v2023.12.0
+#     $ docker image inspect --format "{{.RepoDigests}}" docker.io/vaultwarden/web-vault:v2023.12.0
+#     [docker.io/vaultwarden/web-vault@sha256:cb8e27c241e474d1c162e0fc1909ba0c33f20cf44464d96356e62fdf1afb7eca]
 #
 # - Conversely, to get the tag name from the digest:
-#     $ docker image inspect --format "{{.RepoTags}}" docker.io/vaultwarden/web-vault@sha256:ccf76db7406378b36cb937c1a3ca884448e32e7f82effd4d97b335cd725c75fd
-#     [docker.io/vaultwarden/web-vault:v2023.9.1]
+#     $ docker image inspect --format "{{.RepoTags}}" docker.io/vaultwarden/web-vault@sha256:cb8e27c241e474d1c162e0fc1909ba0c33f20cf44464d96356e62fdf1afb7eca
+#     [docker.io/vaultwarden/web-vault:v2023.12.0]
 #
 # FROM --platform=linux/amd64 docker.io/vaultwarden/web-vault@sha256:ccf76db7406378b36cb937c1a3ca884448e32e7f82effd4d97b335cd725c75fd as vault
-FROM docker.io/jayknyn/ayam-secrets-web:2023.9.1@sha256:96b6972568e163a3ae5aa0d76a41f91308c41a76c3b1e5f73e2f4c2633313f93 as vault
+FROM docker.io/jayknyn/ayam-secrets-web:2024.1.1b@sha256:fc6112ac400702c2e920b20da3c72722d05d7b3250a6e3440bd3b7dae4f738d3 as vault
 
 ########################## ALPINE BUILD IMAGES ##########################
 ## NOTE: The Alpine Base Images do not support other platforms then linux/amd64
 ## And for Alpine we define all build images here, they will only be loaded when actually used
-# FROM --platform=linux/amd64 ghcr.io/blackdex/rust-musl:x86_64-musl-stable-1.73.0 as build_amd64
-# FROM --platform=linux/amd64 ghcr.io/blackdex/rust-musl:aarch64-musl-stable-1.73.0 as build_arm64
-# FROM --platform=linux/amd64 ghcr.io/blackdex/rust-musl:armv7-musleabihf-stable-1.73.0 as build_armv7
-# FROM --platform=linux/amd64 ghcr.io/blackdex/rust-musl:arm-musleabi-stable-1.73.0 as build_armv6
+# FROM --platform=linux/amd64 ghcr.io/blackdex/rust-musl:x86_64-musl-stable-1.75.0 as build_amd64
+# FROM --platform=linux/amd64 ghcr.io/blackdex/rust-musl:aarch64-musl-stable-1.75.0 as build_arm64
+# FROM --platform=linux/amd64 ghcr.io/blackdex/rust-musl:armv7-musleabihf-stable-1.75.0 as build_armv7
+# FROM --platform=linux/amd64 ghcr.io/blackdex/rust-musl:arm-musleabi-stable-1.75.0 as build_armv6
 
 ########################## BUILD IMAGE ##########################
 # hadolint ignore=DL3006
-FROM --platform=linux/amd64 ghcr.io/blackdex/rust-musl:aarch64-musl-stable-1.73.0 as build
+FROM --platform=linux/amd64 ghcr.io/blackdex/rust-musl:aarch64-musl-stable-1.75.0 as build
 ARG TARGETARCH="arm"
 ARG TARGETVARIANT="64"
 ARG TARGETPLATFORM="aarch64"
@@ -80,7 +80,7 @@ RUN source /env-cargo && \
     rustup target add "${CARGO_TARGET}"
 
 ARG CARGO_PROFILE=release
-ARG VW_VERSION=1.29.2
+ARG VW_VERSION=1.30.1
 
 # Copies over *only* your manifests and build files
 COPY ./Cargo.* ./
@@ -101,7 +101,8 @@ COPY . .
 # Builds again, this time it will be the actual source files being build
 RUN source /env-cargo && \
     # Make sure that we actually build the project by updating the src/main.rs timestamp
-    touch src/main.rs && \
+    # Also do this for build.rs to ensure the version is rechecked
+    touch build.rs src/main.rs && \
     # Create a symlink to the binary target folder to easy copy the binary in the final stage
     cargo build --features ${DB} --profile "${CARGO_PROFILE}" --target="${CARGO_TARGET}" && \
     if [[ "${CARGO_PROFILE}" == "dev" ]] ; then \
@@ -127,7 +128,7 @@ RUN source /env-cargo && \
 # To uninstall: docker run --privileged --rm tonistiigi/binfmt --uninstall 'qemu-*'
 #
 # We need to add `--platform` here, because of a podman bug: https://github.com/containers/buildah/issues/4742
-FROM --platform=aarch64 docker.io/library/alpine:3.18
+FROM --platform=aarch64 docker.io/library/alpine:3.19
 
 ENV ROCKET_PROFILE="release" \
     ROCKET_ADDRESS=0.0.0.0 \
