@@ -6,14 +6,13 @@ use serde_json::Value;
 use crate::{
     api::{
         core::{log_event, two_factor, CipherSyncData, CipherSyncType},
-        EmptyResult, JsonResult, JsonUpcase, JsonUpcaseVec, JsonVec, Notify, NumberOrString, PasswordOrOtpData,
-        UpdateType,
+        EmptyResult, JsonResult, JsonUpcase, JsonUpcaseVec, JsonVec, Notify, PasswordOrOtpData, UpdateType,
     },
     auth::{decode_invite, AdminHeaders, Headers, ManagerHeaders, ManagerHeadersLoose, OwnerHeaders},
     db::{models::*, DbConn},
     error::Error,
     mail,
-    util::convert_json_key_lcase_first,
+    util::{convert_json_key_lcase_first, NumberOrString},
     CONFIG,
 };
 
@@ -294,7 +293,7 @@ async fn post_organization(
 async fn get_user_collections(headers: Headers, mut conn: DbConn) -> Json<Value> {
     Json(json!({
         "Data":
-            Collection::find_by_user_uuid(headers.user.uuid.clone(), &mut conn).await
+            Collection::find_by_user_uuid(headers.user.uuid, &mut conn).await
             .iter()
             .map(Collection::to_json)
             .collect::<Value>(),
@@ -611,7 +610,6 @@ async fn post_organization_collection_delete(
 #[allow(non_snake_case)]
 struct BulkCollectionIds {
     Ids: Vec<String>,
-    OrganizationId: String,
 }
 
 #[delete("/organizations/<org_id>/collections", data = "<data>")]
@@ -622,9 +620,6 @@ async fn bulk_delete_organization_collections(
     mut conn: DbConn,
 ) -> EmptyResult {
     let data: BulkCollectionIds = data.into_inner().data;
-    if org_id != data.OrganizationId {
-        err!("OrganizationId mismatch");
-    }
 
     let collections = data.Ids;
 
@@ -2664,6 +2659,7 @@ async fn delete_group_user(
 struct OrganizationUserResetPasswordEnrollmentRequest {
     ResetPasswordKey: Option<String>,
     MasterPasswordHash: Option<String>,
+    Otp: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -2846,14 +2842,12 @@ async fn put_reset_password_enrollment(
     }
 
     if reset_request.ResetPasswordKey.is_some() {
-        match reset_request.MasterPasswordHash {
-            Some(password) => {
-                if !headers.user.check_valid_password(&password) {
-                    err!("Invalid or wrong password")
-                }
-            }
-            None => err!("No password provided"),
-        };
+        PasswordOrOtpData {
+            MasterPasswordHash: reset_request.MasterPasswordHash,
+            Otp: reset_request.Otp,
+        }
+        .validate(&headers.user, true, &mut conn)
+        .await?;
     }
 
     org_user.reset_password_key = reset_request.ResetPasswordKey;
