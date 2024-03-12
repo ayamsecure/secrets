@@ -7,8 +7,8 @@
 1. from terminal, `git checkout main` (ignore untracked changes) then `git fetch upstream` then `git merge upstream/main` then `git push origin main`
 2. `git checkout main-ayam` then `git merge main` to bring in new changes into main-ayam branch, resolve conflicts (accept incoming for ayam changes), `git add .` then `git commit` to conclude merge and `git push`
 3. from main-ayam branch, create new version branch `git checkout -b 1.30.5`
-4. confirm patches are still applied
-5. use colima (x86) on optimont or mac-arm to build image: `docker build -f ./docker/Dockerfile.ayam -t jayknyn/ayam-secure-secrets:1.30.5-2024.1.2 .`
+4. confirm patches are still applied and check for changes to Dockerfile
+5. use colima (x86 arch) on optimac to build image: `docker build -f ./docker/Dockerfile.ayam -t jayknyn/ayam-secure-secrets:1.30.5-2024.1.2 .`
 6. docker login then `docker push jayknyn/ayam-secure-secrets:1.30.5-2024.1.2`
 7. git push changes and after testing on staging service merge into main-ayam via PR
 
