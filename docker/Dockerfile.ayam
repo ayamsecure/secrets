@@ -27,22 +27,22 @@
 #     [docker.io/vaultwarden/web-vault:v2024.1.2b]
 #
 # FROM --platform=linux/amd64 docker.io/vaultwarden/web-vault@sha256:798c0c893b6d16728878ff280b49da08863334d1f8dd88895580dc3dba622f08 as vault
-FROM docker.io/jayknyn/ayam-secrets-web:2024.1.2@sha256:61a9b07fd097e6b323066ca93a1f9756624c4516277598e9db035846c16b2579 as vault
+FROM --platform=linux/amd64 docker.io/jayknyn/ayam-secrets-web:2024.1.2@sha256:61a9b07fd097e6b323066ca93a1f9756624c4516277598e9db035846c16b2579 as vault
 
 ########################## ALPINE BUILD IMAGES ##########################
 ## NOTE: The Alpine Base Images do not support other platforms then linux/amd64
 ## And for Alpine we define all build images here, they will only be loaded when actually used
-# FROM --platform=linux/amd64 ghcr.io/blackdex/rust-musl:x86_64-musl-stable-1.76.0 as build_amd64
-# FROM --platform=linux/amd64 ghcr.io/blackdex/rust-musl:aarch64-musl-stable-1.76.0 as build_arm64
-# FROM --platform=linux/amd64 ghcr.io/blackdex/rust-musl:armv7-musleabihf-stable-1.76.0 as build_armv7
-# FROM --platform=linux/amd64 ghcr.io/blackdex/rust-musl:arm-musleabi-stable-1.76.0 as build_armv6
+FROM --platform=linux/amd64 ghcr.io/blackdex/rust-musl:x86_64-musl-stable-1.76.0 as build_amd64
+FROM --platform=linux/amd64 ghcr.io/blackdex/rust-musl:aarch64-musl-stable-1.76.0 as build_arm64
+FROM --platform=linux/amd64 ghcr.io/blackdex/rust-musl:armv7-musleabihf-stable-1.76.0 as build_armv7
+FROM --platform=linux/amd64 ghcr.io/blackdex/rust-musl:arm-musleabi-stable-1.76.0 as build_armv6
 
 ########################## BUILD IMAGE ##########################
 # hadolint ignore=DL3006
-FROM --platform=linux/amd64 ghcr.io/blackdex/rust-musl:aarch64-musl-stable-1.76.0 as build
-ARG TARGETARCH="arm"
-ARG TARGETVARIANT="64"
-ARG TARGETPLATFORM="aarch64"
+FROM --platform=linux/amd64 build_${TARGETARCH}${TARGETVARIANT} as build
+ARG TARGETARCH
+ARG TARGETVARIANT
+ARG TARGETPLATFORM
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -74,13 +74,13 @@ RUN echo "export CARGO_TARGET=${RUST_MUSL_CROSS_TARGET}" >> /env-cargo && \
     cat /env-cargo
 
 # Enable MiMalloc to improve performance on Alpine builds
-ARG DB=postgresql,enable_mimalloc
+ARG DB=sqlite,mysql,postgresql,enable_mimalloc
 
 RUN source /env-cargo && \
     rustup target add "${CARGO_TARGET}"
 
 ARG CARGO_PROFILE=release
-ARG VW_VERSION=1.30.5
+ARG VW_VERSION
 
 # Copies over *only* your manifests and build files
 COPY ./Cargo.* ./
@@ -128,7 +128,7 @@ RUN source /env-cargo && \
 # To uninstall: docker run --privileged --rm tonistiigi/binfmt --uninstall 'qemu-*'
 #
 # We need to add `--platform` here, because of a podman bug: https://github.com/containers/buildah/issues/4742
-FROM --platform=aarch64 docker.io/library/alpine:3.19
+FROM --platform=$TARGETPLATFORM docker.io/library/alpine:3.19
 
 ENV ROCKET_PROFILE="release" \
     ROCKET_ADDRESS=0.0.0.0 \
