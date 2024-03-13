@@ -18,28 +18,28 @@
 # - From https://hub.docker.com/r/vaultwarden/web-vault/tags,
 #   click the tag name to view the digest of the image it currently points to.
 # - From the command line:
-#     $ docker pull docker.io/vaultwarden/web-vault:v2023.12.0
-#     $ docker image inspect --format "{{.RepoDigests}}" docker.io/vaultwarden/web-vault:v2023.12.0
-#     [docker.io/vaultwarden/web-vault@sha256:cb8e27c241e474d1c162e0fc1909ba0c33f20cf44464d96356e62fdf1afb7eca]
+#     $ docker pull docker.io/vaultwarden/web-vault:v2024.1.2b
+#     $ docker image inspect --format "{{.RepoDigests}}" docker.io/vaultwarden/web-vault:v2024.1.2b
+#     [docker.io/vaultwarden/web-vault@sha256:798c0c893b6d16728878ff280b49da08863334d1f8dd88895580dc3dba622f08]
 #
 # - Conversely, to get the tag name from the digest:
-#     $ docker image inspect --format "{{.RepoTags}}" docker.io/vaultwarden/web-vault@sha256:cb8e27c241e474d1c162e0fc1909ba0c33f20cf44464d96356e62fdf1afb7eca
-#     [docker.io/vaultwarden/web-vault:v2023.12.0]
+#     $ docker image inspect --format "{{.RepoTags}}" docker.io/vaultwarden/web-vault@sha256:798c0c893b6d16728878ff280b49da08863334d1f8dd88895580dc3dba622f08
+#     [docker.io/vaultwarden/web-vault:v2024.1.2b]
 #
-# FROM --platform=linux/amd64 docker.io/vaultwarden/web-vault@sha256:ccf76db7406378b36cb937c1a3ca884448e32e7f82effd4d97b335cd725c75fd as vault
+# FROM --platform=linux/amd64 docker.io/vaultwarden/web-vault@sha256:798c0c893b6d16728878ff280b49da08863334d1f8dd88895580dc3dba622f08 as vault
 FROM docker.io/jayknyn/ayam-secrets-web:2024.1.2@sha256:61a9b07fd097e6b323066ca93a1f9756624c4516277598e9db035846c16b2579 as vault
 
 ########################## ALPINE BUILD IMAGES ##########################
 ## NOTE: The Alpine Base Images do not support other platforms then linux/amd64
 ## And for Alpine we define all build images here, they will only be loaded when actually used
-# FROM --platform=linux/amd64 ghcr.io/blackdex/rust-musl:x86_64-musl-stable-1.75.0 as build_amd64
-# FROM --platform=linux/amd64 ghcr.io/blackdex/rust-musl:aarch64-musl-stable-1.75.0 as build_arm64
-# FROM --platform=linux/amd64 ghcr.io/blackdex/rust-musl:armv7-musleabihf-stable-1.75.0 as build_armv7
-# FROM --platform=linux/amd64 ghcr.io/blackdex/rust-musl:arm-musleabi-stable-1.75.0 as build_armv6
+# FROM --platform=linux/amd64 ghcr.io/blackdex/rust-musl:x86_64-musl-stable-1.76.0 as build_amd64
+# FROM --platform=linux/amd64 ghcr.io/blackdex/rust-musl:aarch64-musl-stable-1.76.0 as build_arm64
+# FROM --platform=linux/amd64 ghcr.io/blackdex/rust-musl:armv7-musleabihf-stable-1.76.0 as build_armv7
+# FROM --platform=linux/amd64 ghcr.io/blackdex/rust-musl:arm-musleabi-stable-1.76.0 as build_armv6
 
 ########################## BUILD IMAGE ##########################
 # hadolint ignore=DL3006
-FROM --platform=linux/amd64 ghcr.io/blackdex/rust-musl:aarch64-musl-stable-1.75.0 as build
+FROM --platform=linux/amd64 ghcr.io/blackdex/rust-musl:aarch64-musl-stable-1.76.0 as build
 ARG TARGETARCH="arm"
 ARG TARGETVARIANT="64"
 ARG TARGETPLATFORM="aarch64"
@@ -80,7 +80,7 @@ RUN source /env-cargo && \
     rustup target add "${CARGO_TARGET}"
 
 ARG CARGO_PROFILE=release
-ARG VW_VERSION=1.30.1
+ARG VW_VERSION=1.30.5
 
 # Copies over *only* your manifests and build files
 COPY ./Cargo.* ./
