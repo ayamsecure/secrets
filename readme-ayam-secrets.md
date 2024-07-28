@@ -14,14 +14,14 @@
 ```
 export AYAM_VW_VERSION=1.30.5
 export AYAM_WEB_VAULT_VERSION=2024.1.2
-export AYAM_SECRETS_TAG=$AYAM_VW_VERSION-$AYAM_WEB_VAULT_VERSION-TEST
+export AYAM_SECRETS_TAG=$AYAM_VW_VERSION-$AYAM_WEB_VAULT_VERSION
 docker build -f ./docker/Dockerfile.ayam \
 --build-arg VW_VERSION=$AYAM_VW_VERSION \
 --build-arg DB=postgresql,enable_mimalloc \
 --build-arg TARGETARCH=arm \
 --build-arg TARGETVARIANT=64 \
 --platform linux/amd64,linux/arm64 \
--t jayknyn/ayam-secure-secrets:$AYAM_SECRETS_TAG . --push
+-t jayknyn/ayam-secure-secrets:$AYAM_SECRETS_TAG-CRDB . --push
 ```
 
 Notes:
