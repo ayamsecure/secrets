@@ -160,7 +160,7 @@ table! {
         atype -> Integer,
         enabled -> Bool,
         data -> Text,
-        last_used -> Integer,
+        last_used -> BigInt,
     }
 }
 
@@ -171,6 +171,15 @@ table! {
         device_name -> Text,
         login_time -> Timestamp,
         ip_address -> Text,
+    }
+}
+
+table! {
+    twofactor_duo_ctx (state) {
+        state -> Text,
+        user_email -> Text,
+        nonce -> Text,
+        exp -> BigInt,
     }
 }
 
