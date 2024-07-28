@@ -39,7 +39,6 @@ macro_rules! make_config {
 
         struct Inner {
             rocket_shutdown_handle: Option<rocket::Shutdown>,
-            ws_shutdown_handle: Option<tokio::sync::oneshot::Sender<()>>,
 
             templates: Handlebars<'static>,
             config: ConfigItems,
@@ -146,6 +145,12 @@ macro_rules! make_config {
 
                 config.signups_domains_whitelist = config.signups_domains_whitelist.trim().to_lowercase();
                 config.org_creation_users = config.org_creation_users.trim().to_lowercase();
+
+
+                // Copy the values from the deprecated flags to the new ones
+                if config.http_request_block_regex.is_none() {
+                    config.http_request_block_regex = config.icon_blacklist_regex.clone();
+                }
 
                 config
             }
@@ -361,7 +366,7 @@ make_config! {
         /// Sends folder
         sends_folder:           String, false,  auto,   |c| format!("{}/{}", c.data_folder, "sends");
         /// Temp folder |> Used for storing temporary file uploads
-        tmp_folder:           String, false,  auto,   |c| format!("{}/{}", c.data_folder, "tmp");
+        tmp_folder:             String, false,  auto,   |c| format!("{}/{}", c.data_folder, "tmp");
         /// Templates folder
         templates_folder:       String, false,  auto,   |c| format!("{}/{}", c.data_folder, "templates");
         /// Session JWT key
@@ -371,11 +376,7 @@ make_config! {
     },
     ws {
         /// Enable websocket notifications
-        websocket_enabled:      bool,   false,  def,    false;
-        /// Websocket address
-        websocket_address:      String, false,  def,    "0.0.0.0".to_string();
-        /// Websocket port
-        websocket_port:         u16,    false,  def,    3012;
+        enable_websocket:       bool,   false,  def,    true;
     },
     push {
         /// Enable push notifications
@@ -414,7 +415,9 @@ make_config! {
         /// Auth Request cleanup schedule |> Cron schedule of the job that cleans old auth requests from the auth request.
         /// Defaults to every minute. Set blank to disable this job.
         auth_request_purge_schedule:   String, false,  def,    "30 * * * * *".to_string();
-
+        /// Duo Auth context cleanup schedule |> Cron schedule of the job that cleans expired Duo contexts from the database. Does nothing if Duo MFA is disabled or set to use the legacy iframe prompt.
+        /// Defaults to once every minute. Set blank to disable this job.
+        duo_context_purge_schedule:   String, false,  def,    "30 * * * * *".to_string();
     },
 
     /// General settings
@@ -536,12 +539,18 @@ make_config! {
         icon_cache_negttl:      u64,    true,   def,    259_200;
         /// Icon download timeout |> Number of seconds when to stop attempting to download an icon.
         icon_download_timeout:  u64,    true,   def,    10;
-        /// Icon blacklist Regex |> Any domains or IPs that match this regex won't be fetched by the icon service.
+
+        /// [Deprecated] Icon blacklist Regex |> Use `http_request_block_regex` instead
+        icon_blacklist_regex:   String, false,   option;
+        /// [Deprecated] Icon blacklist non global IPs |> Use `http_request_block_non_global_ips` instead
+        icon_blacklist_non_global_ips:  bool,   false,   def, true;
+
+        /// Block HTTP domains/IPs by Regex |> Any domains or IPs that match this regex won't be fetched by the internal HTTP client.
         /// Useful to hide other servers in the local network. Check the WIKI for more details
-        icon_blacklist_regex:   String, true,   option;
-        /// Icon blacklist non global IPs |> Any IP which is not defined as a global IP will be blacklisted.
+        http_request_block_regex:   String, true,   option;
+        /// Block non global IPs |> Enabling this will cause the internal HTTP client to refuse to connect to any non global IP address.
         /// Useful to secure your internal environment: See https://en.wikipedia.org/wiki/Reserved_IP_addresses for a list of IPs which it will block
-        icon_blacklist_non_global_ips:  bool,   true,   def,    true;
+        http_request_block_non_global_ips:  bool,   true,   auto, |c| c.icon_blacklist_non_global_ips;
 
         /// Disable Two-Factor remember |> Enabling this would force the users to use a second factor to login every time.
         /// Note that the checkbox would still be present, but ignored.
@@ -569,8 +578,9 @@ make_config! {
         use_syslog:             bool,   false,  def,    false;
         /// Log file path
         log_file:               String, false,  option;
-        /// Log level
-        log_level:              String, false,  def,    "Info".to_string();
+        /// Log level |> Valid values are "trace", "debug", "info", "warn", "error" and "off"
+        /// For a specific module append it as a comma separated value "info,path::to::module=debug"
+        log_level:              String, false,  def,    "info".to_string();
 
         /// Enable DB WAL |> Turning this off might lead to worse performance, but might help if using vaultwarden on some exotic filesystems,
         /// that do not support WAL. Please make sure you read project wiki on the topic before changing this setting.
@@ -608,7 +618,13 @@ make_config! {
         admin_session_lifetime:        i64, true,  def, 20;
 
         /// Enable groups (BETA!) (Know the risks!) |> Enables groups support for organizations (Currently contains known issues!).
-        org_groups_enabled:     bool,   false,  def,    false;
+        org_groups_enabled:            bool, false, def, false;
+
+        /// Increase note size limit (Know the risks!) |> Sets the secure note size limit to 100_000 instead of the default 10_000.
+        /// WARNING: This could cause issues with clients. Also exports will not work on Bitwarden servers!
+        increase_note_size_limit:      bool,  true,  def, false;
+        /// Generated max_note_size value to prevent if..else matching during every check
+        _max_note_size:                usize, false, gen, |c| if c.increase_note_size_limit {100_000} else {10_000};
     },
 
     /// Yubikey settings
@@ -627,6 +643,8 @@ make_config! {
     duo: _enable_duo {
         /// Enabled
         _enable_duo:            bool,   true,   def,     true;
+        /// Attempt to use deprecated iframe-based Traditional Prompt (Duo WebSDK 2)
+        duo_use_iframe:         bool,   false,  def,     false;
         /// Integration Key
         duo_ikey:               String, true,   option;
         /// Secret Key
@@ -691,6 +709,10 @@ make_config! {
         email_expiration_time:  u64,    true,   def,      600;
         /// Maximum attempts |> Maximum attempts before an email token is reset and a new email will need to be sent
         email_attempts_limit:   u64,    true,   def,      3;
+        /// Automatically enforce at login |> Setup email 2FA provider regardless of any organization policy
+        email_2fa_enforce_on_verified_invite: bool,   true,   def,      false;
+        /// Auto-enable 2FA (Know the risks!) |> Automatically setup email 2FA as fallback provider when needed
+        email_2fa_auto_fallback: bool,  true,   def,      false;
     },
 }
 
@@ -893,12 +915,19 @@ fn validate_config(cfg: &ConfigItems) -> Result<(), Error> {
         err!("To enable email 2FA, a mail transport must be configured")
     }
 
-    // Check if the icon blacklist regex is valid
-    if let Some(ref r) = cfg.icon_blacklist_regex {
+    if !cfg._enable_email_2fa && cfg.email_2fa_enforce_on_verified_invite {
+        err!("To enforce email 2FA on verified invitations, email 2fa has to be enabled!");
+    }
+    if !cfg._enable_email_2fa && cfg.email_2fa_auto_fallback {
+        err!("To use email 2FA as automatic fallback, email 2fa has to be enabled!");
+    }
+
+    // Check if the HTTP request block regex is valid
+    if let Some(ref r) = cfg.http_request_block_regex {
         let validate_regex = regex::Regex::new(r);
         match validate_regex {
             Ok(_) => (),
-            Err(e) => err!(format!("`ICON_BLACKLIST_REGEX` is invalid: {e:#?}")),
+            Err(e) => err!(format!("`HTTP_REQUEST_BLOCK_REGEX` is invalid: {e:#?}")),
         }
     }
 
@@ -977,6 +1006,11 @@ fn validate_config(cfg: &ConfigItems) -> Result<(), Error> {
             }
             _ => {}
         }
+    }
+
+    if cfg.increase_note_size_limit {
+        println!("[WARNING] Secure Note size limit is increased to 100_000!");
+        println!("[WARNING] This could cause issues with clients. Also exports will not work on Bitwarden servers!.");
     }
     Ok(())
 }
@@ -1071,7 +1105,6 @@ impl Config {
         Ok(Config {
             inner: RwLock::new(Inner {
                 rocket_shutdown_handle: None,
-                ws_shutdown_handle: None,
                 templates: load_templates(&config.templates_folder),
                 config,
                 _env,
@@ -1164,7 +1197,7 @@ impl Config {
     }
 
     pub fn delete_user_config(&self) -> Result<(), Error> {
-        crate::util::delete_file(&CONFIG_FILE)?;
+        std::fs::remove_file(&*CONFIG_FILE)?;
 
         // Empty user config
         let usr = ConfigBuilder::default();
@@ -1188,9 +1221,6 @@ impl Config {
 
     pub fn private_rsa_key(&self) -> String {
         format!("{}.pem", CONFIG.rsa_key_filename())
-    }
-    pub fn public_rsa_key(&self) -> String {
-        format!("{}.pub.pem", CONFIG.rsa_key_filename())
     }
     pub fn mail_enabled(&self) -> bool {
         let inner = &self.inner.read().unwrap().config;
@@ -1240,16 +1270,8 @@ impl Config {
         self.inner.write().unwrap().rocket_shutdown_handle = Some(handle);
     }
 
-    pub fn set_ws_shutdown_handle(&self, handle: tokio::sync::oneshot::Sender<()>) {
-        self.inner.write().unwrap().ws_shutdown_handle = Some(handle);
-    }
-
     pub fn shutdown(&self) {
         if let Ok(mut c) = self.inner.write() {
-            if let Some(handle) = c.ws_shutdown_handle.take() {
-                handle.send(()).ok();
-            }
-
             if let Some(handle) = c.rocket_shutdown_handle.take() {
                 handle.notify();
             }
@@ -1271,7 +1293,6 @@ where
     hb.set_strict_mode(true);
     // Register helpers
     hb.register_helper("case", Box::new(case_helper));
-    hb.register_helper("jsesc", Box::new(js_escape_helper));
     hb.register_helper("to_json", Box::new(to_json));
 
     macro_rules! reg {
@@ -1329,14 +1350,7 @@ where
     // And then load user templates to overwrite the defaults
     // Use .hbs extension for the files
     // Templates get registered with their relative name
-    hb.register_templates_directory(
-        path,
-        DirectorySourceOptions {
-            tpl_extension: ".hbs".to_owned(),
-            ..Default::default()
-        },
-    )
-    .unwrap();
+    hb.register_templates_directory(path, DirectorySourceOptions::default()).unwrap();
 
     hb
 }
@@ -1357,32 +1371,6 @@ fn case_helper<'reg, 'rc>(
     } else {
         Ok(())
     }
-}
-
-fn js_escape_helper<'reg, 'rc>(
-    h: &Helper<'rc>,
-    _r: &'reg Handlebars<'_>,
-    _ctx: &'rc Context,
-    _rc: &mut RenderContext<'reg, 'rc>,
-    out: &mut dyn Output,
-) -> HelperResult {
-    let param =
-        h.param(0).ok_or_else(|| RenderErrorReason::Other(String::from("Param not found for helper \"jsesc\"")))?;
-
-    let no_quote = h.param(1).is_some();
-
-    let value = param
-        .value()
-        .as_str()
-        .ok_or_else(|| RenderErrorReason::Other(String::from("Param for helper \"jsesc\" is not a String")))?;
-
-    let mut escaped_value = value.replace('\\', "").replace('\'', "\\x22").replace('\"', "\\x27");
-    if !no_quote {
-        escaped_value = format!("&quot;{escaped_value}&quot;");
-    }
-
-    out.write(&escaped_value)?;
-    Ok(())
 }
 
 fn to_json<'reg, 'rc>(
