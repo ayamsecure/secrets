@@ -10,8 +10,8 @@
   "gitHash": null,
   "object": "config",
   "server": {
-    "name": "Vaultwarden",
-    "url": "https://github.com/dani-garcia/vaultwarden"
+    "name": "Ayam Secure secrets",
+    "url": "https://secrets.ayamsecure.com"
   },
-  "version": "2023.9.1"
+  "version": "2024.5.1"
 }
