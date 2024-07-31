@@ -1,0 +1,17 @@
+{
+  "environment": {
+    "api": "https://secrets.ayamsecure.com/api",
+    "identity": "https://secrets.ayamsecure.com/identity",
+    "notifications": "https://secrets.ayamsecure.com/notifications",
+    "sso": "",
+    "vault": "https://secrets.ayamsecure.com"
+  },
+  "featureStates": { "autofill-v2": true },
+  "gitHash": null,
+  "object": "config",
+  "server": {
+    "name": "Ayam Secure secrets",
+    "url": "https://secrets.ayamsecure.com"
+  },
+  "version": "2024.5.1"
+}
