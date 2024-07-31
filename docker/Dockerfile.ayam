@@ -28,7 +28,7 @@
 #     [docker.io/vaultwarden/web-vault:v2024.5.1b]
 #
 # FROM --platform=linux/amd64 docker.io/vaultwarden/web-vault@sha256:1a867b4b175e85fc8602314bd83bc263c76c49787031704f16a2915567725375 AS vault
-FROM --platform=linux/amd64 docker.io/jayknyn/ayam-secrets-web:2024.5.1@sha256:a19aebb4cdb49ad84e57aa501262b7b261f3b14187ed0d599aeb927bde28ddc4 AS vault
+FROM --platform=linux/amd64 docker.io/jayknyn/ayam-secrets-web:2024.5.1@sha256:89aa717b168792b2606351ed917523352531c60c87c0905c202d93114ae5a152 AS vault
 
 ########################## ALPINE BUILD IMAGES ##########################
 ## NOTE: The Alpine Base Images do not support other platforms then linux/amd64
