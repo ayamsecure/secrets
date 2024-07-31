@@ -6,21 +6,22 @@
 
 1. from terminal, `git checkout main` (ignore untracked changes) then `git fetch upstream` then `git merge upstream/main` then `git push origin main`
 2. `git checkout main-ayam` then `git merge main` to bring in new changes into main-ayam branch, resolve conflicts (accept incoming for ayam changes), `git add .` then `git commit` to conclude merge and `git push`
-3. from main-ayam branch, create new version branch `git checkout -b 1.30.5`
+3. from main-ayam branch, create new version branch `git checkout -b 1.31.0`
 4. confirm patches (below) are still applied and check for changes to Dockerfile.alpine
 5. use colima (x86 arch) on optimac to build image, ensure logged in to docker hub for push
 6. git push changes and after testing on staging service merge into main-ayam via PR
 
+- have to --push, can't --load, maybe due to multi-arch images
+
 ```
-export AYAM_VW_VERSION=1.30.5
-export AYAM_WEB_VAULT_VERSION=2024.1.2
-export AYAM_SECRETS_TAG=$AYAM_VW_VERSION-$AYAM_WEB_VAULT_VERSION-TEST
-docker build -f ./docker/Dockerfile.ayam \
+export AYAM_VW_VERSION=1.31.0
+export AYAM_WEB_VAULT_VERSION=2024.5.1
+export AYAM_SECRETS_TAG=$AYAM_VW_VERSION-$AYAM_WEB_VAULT_VERSION
+docker buildx build --platform linux/amd64,linux/arm64 -f ./docker/Dockerfile.ayam \
 --build-arg VW_VERSION=$AYAM_VW_VERSION \
 --build-arg DB=postgresql,enable_mimalloc \
 --build-arg TARGETARCH=arm \
 --build-arg TARGETVARIANT=64 \
---platform linux/amd64,linux/arm64 \
 -t jayknyn/ayam-secure-secrets:$AYAM_SECRETS_TAG . --push
 ```
 
@@ -35,6 +36,7 @@ Notes:
 - 1.29.3a, patch fix for mobile clients issue, based off of 1.29.2 and latest commits to main, waiting on upstream 1.29.3
 - 1.30.1, matches upstream 1.30.1
 - 1.30.5 matches upstream
+- 1.31.0 matches upstream, api-config.json is not in upstream, update version here
 
 ## Changelog
 
@@ -159,6 +161,6 @@ ARG TARGETVARIANT="64"
 ARG TARGETPLATFORM="aarch64"
 
 # old build command
-docker build -f ./docker/Dockerfile.ayam -t jayknyn/ayam-secure-secrets:1.30.5-2024.1.2 .
+docker build -f ./docker/Dockerfile.ayam -t jayknyn/ayam-secure-secrets:1.31.0-2024.5.1 .
 
 ```
