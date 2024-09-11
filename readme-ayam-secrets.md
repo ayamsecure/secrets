@@ -8,12 +8,13 @@
 2. `git checkout main-ayam` then `git merge main` to bring in new changes into main-ayam branch, resolve conflicts (accept incoming for ayam changes), `git add .` then `git commit` to conclude merge and `git push`
 3. from main-ayam branch, create new version branch `git checkout -b 1.32.0`
 4. confirm patches (below, usually no changes needed) are still applied and check for changes to Dockerfile.alpine
-5. use colima (x86 arch) on optimac to build image, ensure logged in to docker hub for push
+5. use colima (x86 arch, 16GB, 4 CPU) on optimac to build image, ensure logged in to docker hub for push
 6. git push changes and after testing on staging service merge into main-ayam via PR
-
-- have to --push, can't --load, due to multi-arch images
+7. use `build-images.sh` to build and push both arm and amd images
 
 ```
+# old build command, now using build-images.sh
+
 export AYAM_VW_VERSION=1.32.0
 export AYAM_WEB_VAULT_VERSION=2024.6.2
 export AYAM_SECRETS_TAG=$AYAM_VW_VERSION-$AYAM_WEB_VAULT_VERSION
