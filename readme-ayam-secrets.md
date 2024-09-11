@@ -6,16 +6,16 @@
 
 1. from terminal, `git checkout main` (ignore untracked changes) then `git fetch upstream` then `git merge upstream/main` then `git push origin main`
 2. `git checkout main-ayam` then `git merge main` to bring in new changes into main-ayam branch, resolve conflicts (accept incoming for ayam changes), `git add .` then `git commit` to conclude merge and `git push`
-3. from main-ayam branch, create new version branch `git checkout -b 1.31.0`
-4. confirm patches (below) are still applied and check for changes to Dockerfile.alpine
+3. from main-ayam branch, create new version branch `git checkout -b 1.32.0`
+4. confirm patches (below, usually no changes needed) are still applied and check for changes to Dockerfile.alpine
 5. use colima (x86 arch) on optimac to build image, ensure logged in to docker hub for push
 6. git push changes and after testing on staging service merge into main-ayam via PR
 
-- have to --push, can't --load, maybe due to multi-arch images
+- have to --push, can't --load, due to multi-arch images
 
 ```
-export AYAM_VW_VERSION=1.31.0
-export AYAM_WEB_VAULT_VERSION=2024.5.1
+export AYAM_VW_VERSION=1.32.0
+export AYAM_WEB_VAULT_VERSION=2024.6.2
 export AYAM_SECRETS_TAG=$AYAM_VW_VERSION-$AYAM_WEB_VAULT_VERSION
 docker buildx build --platform linux/amd64,linux/arm64 -f ./docker/Dockerfile.ayam \
 --build-arg VW_VERSION=$AYAM_VW_VERSION \
@@ -37,13 +37,15 @@ Notes:
 - 1.30.1, matches upstream 1.30.1
 - 1.30.5 matches upstream
 - 1.31.0 matches upstream, api-config.json is not in upstream, update version here
+- 1.31.1 testing multiarch build
+- 1.32.0, no major changes, need to update web-vault, then release, multi-arch build not succeeding with same tag
 
 ## Changelog
 
 [03/12/24]
 
 - simplified Dockerfile.ayam to just replace one line, web-vault image hash
-- updated readme with multi-arch build command for arm64 and amd64
+- updated readme with multi-arch build command for arm64 and amd64 (not working for amd)
 
 ---
 
