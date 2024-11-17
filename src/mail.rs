@@ -17,6 +17,7 @@ use crate::{
         encode_jwt, generate_delete_claims, generate_emergency_access_invite_claims, generate_invite_claims,
         generate_verify_email_claims,
     },
+    db::models::{Device, DeviceType, User},
     error::Error,
     CONFIG,
 };
@@ -95,7 +96,31 @@ fn smtp_transport() -> AsyncSmtpTransport<Tokio1Executor> {
     smtp_client.build()
 }
 
+// This will sanitize the string values by stripping all the html tags to prevent XSS and HTML Injections
+fn sanitize_data(data: &mut serde_json::Value) {
+    use regex::Regex;
+    use std::sync::LazyLock;
+    static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"<[^>]+>").unwrap());
+
+    match data {
+        serde_json::Value::String(s) => *s = RE.replace_all(s, "").to_string(),
+        serde_json::Value::Object(obj) => {
+            for d in obj.values_mut() {
+                sanitize_data(d);
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for d in arr.iter_mut() {
+                sanitize_data(d);
+            }
+        }
+        _ => {}
+    }
+}
+
 fn get_text(template_name: &'static str, data: serde_json::Value) -> Result<(String, String, String), Error> {
+    let mut data = data;
+    sanitize_data(&mut data);
     let (subject_html, body_html) = get_template(&format!("{template_name}.html"), &data)?;
     let (_subject_text, body_text) = get_template(template_name, &data)?;
     Ok((subject_html, body_html, body_text))
@@ -114,6 +139,10 @@ fn get_template(template_name: &str, data: &serde_json::Value) -> Result<(String
         Some(s) => s.trim().to_string(),
         None => err!("Template doesn't contain body"),
     };
+
+    if text_split.next().is_some() {
+        err!("Template contains more than one body");
+    }
 
     Ok((subject, body))
 }
@@ -229,37 +258,50 @@ pub async fn send_single_org_removed_from_org(address: &str, org_name: &str) -> 
 }
 
 pub async fn send_invite(
-    address: &str,
-    uuid: &str,
+    user: &User,
     org_id: Option<String>,
     org_user_id: Option<String>,
     org_name: &str,
     invited_by_email: Option<String>,
 ) -> EmptyResult {
     let claims = generate_invite_claims(
-        uuid.to_string(),
-        String::from(address),
+        user.uuid.clone(),
+        user.email.clone(),
         org_id.clone(),
         org_user_id.clone(),
         invited_by_email,
     );
     let invite_token = encode_jwt(&claims);
+    let mut query = url::Url::parse("https://query.builder").unwrap();
+    {
+        let mut query_params = query.query_pairs_mut();
+        query_params
+            .append_pair("email", &user.email)
+            .append_pair("organizationName", org_name)
+            .append_pair("organizationId", org_id.as_deref().unwrap_or("_"))
+            .append_pair("organizationUserId", org_user_id.as_deref().unwrap_or("_"))
+            .append_pair("token", &invite_token);
+        if user.private_key.is_some() {
+            query_params.append_pair("orgUserHasExistingUser", "true");
+        }
+    }
+
+    let query_string = match query.query() {
+        None => err!("Failed to build invite URL query parameters"),
+        Some(query) => query,
+    };
 
     let (subject, body_html, body_text) = get_text(
         "email/send_org_invite",
         json!({
-            "url": CONFIG.domain(),
+            // `url.Url` would place the anchor `#` after the query parameters
+            "url": format!("{}/#/accept-organization/?{}", CONFIG.domain(), query_string),
             "img_src": CONFIG._smtp_img_src(),
-            "org_id": org_id.as_deref().unwrap_or("_"),
-            "org_user_id": org_user_id.as_deref().unwrap_or("_"),
-            "email": percent_encode(address.as_bytes(), NON_ALPHANUMERIC).to_string(),
-            "org_name_encoded": percent_encode(org_name.as_bytes(), NON_ALPHANUMERIC).to_string(),
             "org_name": org_name,
-            "token": invite_token,
         }),
     )?;
 
-    send_email(address, &subject, body_html, body_text).await
+    send_email(&user.email, &subject, body_html, body_text).await
 }
 
 pub async fn send_emergency_access_invite(
@@ -277,17 +319,29 @@ pub async fn send_emergency_access_invite(
         String::from(grantor_email),
     );
 
-    let invite_token = encode_jwt(&claims);
+    // Build the query here to ensure proper escaping
+    let mut query = url::Url::parse("https://query.builder").unwrap();
+    {
+        let mut query_params = query.query_pairs_mut();
+        query_params
+            .append_pair("id", emer_id)
+            .append_pair("name", grantor_name)
+            .append_pair("email", address)
+            .append_pair("token", &encode_jwt(&claims));
+    }
+
+    let query_string = match query.query() {
+        None => err!("Failed to build emergency invite URL query parameters"),
+        Some(query) => query,
+    };
 
     let (subject, body_html, body_text) = get_text(
         "email/send_emergency_access_invite",
         json!({
-            "url": CONFIG.domain(),
+            // `url.Url` would place the anchor `#` after the query parameters
+            "url": format!("{}/#/accept-emergency/?{query_string}", CONFIG.domain()),
             "img_src": CONFIG._smtp_img_src(),
-            "emer_id": emer_id,
-            "email": percent_encode(address.as_bytes(), NON_ALPHANUMERIC).to_string(),
             "grantor_name": grantor_name,
-            "token": invite_token,
         }),
     )?;
 
@@ -427,9 +481,8 @@ pub async fn send_invite_confirmed(address: &str, org_name: &str) -> EmptyResult
     send_email(address, &subject, body_html, body_text).await
 }
 
-pub async fn send_new_device_logged_in(address: &str, ip: &str, dt: &NaiveDateTime, device: &str) -> EmptyResult {
+pub async fn send_new_device_logged_in(address: &str, ip: &str, dt: &NaiveDateTime, device: &Device) -> EmptyResult {
     use crate::util::upcase_first;
-    let device = upcase_first(device);
 
     let fmt = "%A, %B %_d, %Y at %r %Z";
     let (subject, body_html, body_text) = get_text(
@@ -438,7 +491,8 @@ pub async fn send_new_device_logged_in(address: &str, ip: &str, dt: &NaiveDateTi
             "url": CONFIG.domain(),
             "img_src": CONFIG._smtp_img_src(),
             "ip": ip,
-            "device": device,
+            "device_name": upcase_first(&device.name),
+            "device_type": DeviceType::from_i32(device.atype).to_string(),
             "datetime": crate::util::format_naive_datetime_local(dt, fmt),
         }),
     )?;
@@ -446,9 +500,14 @@ pub async fn send_new_device_logged_in(address: &str, ip: &str, dt: &NaiveDateTi
     send_email(address, &subject, body_html, body_text).await
 }
 
-pub async fn send_incomplete_2fa_login(address: &str, ip: &str, dt: &NaiveDateTime, device: &str) -> EmptyResult {
+pub async fn send_incomplete_2fa_login(
+    address: &str,
+    ip: &str,
+    dt: &NaiveDateTime,
+    device_name: &str,
+    device_type: &str,
+) -> EmptyResult {
     use crate::util::upcase_first;
-    let device = upcase_first(device);
 
     let fmt = "%A, %B %_d, %Y at %r %Z";
     let (subject, body_html, body_text) = get_text(
@@ -457,7 +516,8 @@ pub async fn send_incomplete_2fa_login(address: &str, ip: &str, dt: &NaiveDateTi
             "url": CONFIG.domain(),
             "img_src": CONFIG._smtp_img_src(),
             "ip": ip,
-            "device": device,
+            "device_name": upcase_first(device_name),
+            "device_type": device_type,
             "datetime": crate::util::format_naive_datetime_local(dt, fmt),
             "time_limit": CONFIG.incomplete_2fa_time_limit(),
         }),

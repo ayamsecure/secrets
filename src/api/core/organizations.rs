@@ -9,7 +9,7 @@ use crate::{
         core::{log_event, two_factor, CipherSyncData, CipherSyncType},
         EmptyResult, JsonResult, Notify, PasswordOrOtpData, UpdateType,
     },
-    auth::{decode_invite, AdminHeaders, Headers, ManagerHeaders, ManagerHeadersLoose, OwnerHeaders},
+    auth::{decode_invite, AdminHeaders, ClientVersion, Headers, ManagerHeaders, ManagerHeadersLoose, OwnerHeaders},
     db::{models::*, DbConn},
     error::Error,
     mail,
@@ -358,11 +358,12 @@ async fn get_org_collections_details(org_id: &str, headers: ManagerHeadersLoose,
             Vec::with_capacity(0)
         };
 
-        let mut json_object = col.to_json();
+        let mut json_object = col.to_json_details(&headers.user.uuid, None, &mut conn).await;
         json_object["assigned"] = json!(assigned);
         json_object["users"] = json!(users);
         json_object["groups"] = json!(groups);
         json_object["object"] = json!("collectionAccessDetails");
+        json_object["unmanaged"] = json!(false);
         data.push(json_object)
     }
 
@@ -509,7 +510,7 @@ async fn post_organization_collection_update(
         CollectionUser::save(&org_user.user_uuid, col_id, user.read_only, user.hide_passwords, &mut conn).await?;
     }
 
-    Ok(Json(collection.to_json()))
+    Ok(Json(collection.to_json_details(&headers.user.uuid, None, &mut conn).await))
 }
 
 #[delete("/organizations/<org_id>/collections/<col_id>/user/<org_user_id>")]
@@ -680,7 +681,7 @@ async fn get_org_collection_detail(
 
             let assigned = Collection::can_access_collection(&user_org, &collection.uuid, &mut conn).await;
 
-            let mut json_object = collection.to_json();
+            let mut json_object = collection.to_json_details(&headers.user.uuid, None, &mut conn).await;
             json_object["assigned"] = json!(assigned);
             json_object["users"] = json!(users);
             json_object["groups"] = json!(groups);
@@ -872,20 +873,19 @@ async fn send_invite(org_id: &str, data: Json<InviteData>, headers: AdminHeaders
     }
 
     for email in data.emails.iter() {
-        let email = email.to_lowercase();
         let mut user_org_status = UserOrgStatus::Invited as i32;
-        let user = match User::find_by_mail(&email, &mut conn).await {
+        let user = match User::find_by_mail(email, &mut conn).await {
             None => {
                 if !CONFIG.invitations_allowed() {
                     err!(format!("User does not exist: {email}"))
                 }
 
-                if !CONFIG.is_email_domain_allowed(&email) {
+                if !CONFIG.is_email_domain_allowed(email) {
                     err!("Email domain not eligible for invitations")
                 }
 
                 if !CONFIG.mail_enabled() {
-                    let invitation = Invitation::new(&email);
+                    let invitation = Invitation::new(email);
                     invitation.save(&mut conn).await?;
                 }
 
@@ -956,8 +956,7 @@ async fn send_invite(org_id: &str, data: Json<InviteData>, headers: AdminHeaders
             };
 
             mail::send_invite(
-                &email,
-                &user.uuid,
+                &user,
                 Some(String::from(org_id)),
                 Some(new_user.uuid),
                 &org_name,
@@ -1033,8 +1032,7 @@ async fn _reinvite_user(org_id: &str, user_org: &str, invited_by_email: &str, co
 
     if CONFIG.mail_enabled() {
         mail::send_invite(
-            &user.email,
-            &user.uuid,
+            &user,
             Some(org_id.to_string()),
             Some(user_org.uuid),
             &org_name,
@@ -1598,7 +1596,7 @@ async fn post_org_import(
     // Bitwarden does not process the import if there is one item invalid.
     // Since we check for the size of the encrypted note length, we need to do that here to pre-validate it.
     // TODO: See if we can optimize the whole cipher adding/importing and prevent duplicate code and checks.
-    Cipher::validate_notes(&data.ciphers)?;
+    Cipher::validate_cipher_data(&data.ciphers)?;
 
     let mut collections = Vec::new();
     for coll in data.collections {
@@ -1722,7 +1720,7 @@ async fn list_policies_token(org_id: &str, token: &str, mut conn: DbConn) -> Jso
         return Ok(Json(json!({})));
     }
 
-    let invite = crate::auth::decode_invite(token)?;
+    let invite = decode_invite(token)?;
 
     let invite_org_id = match invite.org_id {
         Some(invite_org_id) => invite_org_id,
@@ -1781,6 +1779,38 @@ async fn put_policy(
         Some(pt) => pt,
         None => err!("Invalid or unsupported policy type"),
     };
+
+    // Bitwarden only allows the Reset Password policy when Single Org policy is enabled
+    // Vaultwarden encouraged to use multiple orgs instead of groups because groups were not available in the past
+    // Now that groups are available we can enforce this option when wanted.
+    // We put this behind a config option to prevent breaking current installation.
+    // Maybe we want to enable this by default in the future, but currently it is disabled by default.
+    if CONFIG.enforce_single_org_with_reset_pw_policy() {
+        if pol_type_enum == OrgPolicyType::ResetPassword && data.enabled {
+            let single_org_policy_enabled =
+                match OrgPolicy::find_by_org_and_type(org_id, OrgPolicyType::SingleOrg, &mut conn).await {
+                    Some(p) => p.enabled,
+                    None => false,
+                };
+
+            if !single_org_policy_enabled {
+                err!("Single Organization policy is not enabled. It is mandatory for this policy to be enabled.")
+            }
+        }
+
+        // Also prevent the Single Org Policy to be disabled if the Reset Password policy is enabled
+        if pol_type_enum == OrgPolicyType::SingleOrg && !data.enabled {
+            let reset_pw_policy_enabled =
+                match OrgPolicy::find_by_org_and_type(org_id, OrgPolicyType::ResetPassword, &mut conn).await {
+                    Some(p) => p.enabled,
+                    None => false,
+                };
+
+            if reset_pw_policy_enabled {
+                err!("Account recovery policy is enabled. It is not allowed to disable this policy.")
+            }
+        }
+    }
 
     // When enabling the TwoFactorAuthentication policy, revoke all members that do not have 2FA
     if pol_type_enum == OrgPolicyType::TwoFactorAuthentication && data.enabled {
@@ -2005,8 +2035,7 @@ async fn import(org_id: &str, data: Json<OrgImportData>, headers: Headers, mut c
                     };
 
                     mail::send_invite(
-                        &user_data.email,
-                        &user.uuid,
+                        &user,
                         Some(String::from(org_id)),
                         Some(new_org_user.uuid),
                         &org_name,
@@ -2281,6 +2310,7 @@ async fn get_groups(org_id: &str, _headers: ManagerHeadersLoose, mut conn: DbCon
         // Group::find_by_organization(&org_id, &mut conn).await.iter().map(Group::to_json).collect::<Value>()
         let groups = Group::find_by_organization(org_id, &mut conn).await;
         let mut groups_json = Vec::with_capacity(groups.len());
+
         for g in groups {
             groups_json.push(g.to_json_details(&mut conn).await)
         }
@@ -2969,18 +2999,20 @@ async fn put_reset_password_enrollment(
 //       We need to convert all keys so they have the first character to be a lowercase.
 //       Else the export will be just an empty JSON file.
 #[get("/organizations/<org_id>/export")]
-async fn get_org_export(org_id: &str, headers: AdminHeaders, mut conn: DbConn) -> Json<Value> {
-    use semver::{Version, VersionReq};
-
+async fn get_org_export(
+    org_id: &str,
+    headers: AdminHeaders,
+    client_version: Option<ClientVersion>,
+    mut conn: DbConn,
+) -> Json<Value> {
     // Since version v2023.1.0 the format of the export is different.
     // Also, this endpoint was created since v2022.9.0.
     // Therefore, we will check for any version smaller then v2023.1.0 and return a different response.
     // If we can't determine the version, we will use the latest default v2023.1.0 and higher.
     // https://github.com/bitwarden/server/blob/9ca93381ce416454734418c3a9f99ab49747f1b6/src/Api/Controllers/OrganizationExportController.cs#L44
-    let use_list_response_model = if let Some(client_version) = headers.client_version {
-        let ver_match = VersionReq::parse("<2023.1.0").unwrap();
-        let client_version = Version::parse(&client_version).unwrap();
-        ver_match.matches(&client_version)
+    let use_list_response_model = if let Some(client_version) = client_version {
+        let ver_match = semver::VersionReq::parse("<2023.1.0").unwrap();
+        ver_match.matches(&client_version.0)
     } else {
         false
     };

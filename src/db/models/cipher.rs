@@ -30,7 +30,8 @@ db_object! {
         Login = 1,
         SecureNote = 2,
         Card = 3,
-        Identity = 4
+        Identity = 4,
+        SshKey = 5
         */
         pub atype: i32,
         pub name: String,
@@ -79,19 +80,39 @@ impl Cipher {
         }
     }
 
-    pub fn validate_notes(cipher_data: &[CipherData]) -> EmptyResult {
+    pub fn validate_cipher_data(cipher_data: &[CipherData]) -> EmptyResult {
         let mut validation_errors = serde_json::Map::new();
         let max_note_size = CONFIG._max_note_size();
         let max_note_size_msg =
             format!("The field Notes exceeds the maximum encrypted value length of {} characters.", &max_note_size);
         for (index, cipher) in cipher_data.iter().enumerate() {
+            // Validate the note size and if it is exceeded return a warning
             if let Some(note) = &cipher.notes {
                 if note.len() > max_note_size {
                     validation_errors
                         .insert(format!("Ciphers[{index}].Notes"), serde_json::to_value([&max_note_size_msg]).unwrap());
                 }
             }
+
+            // Validate the password history if it contains `null` values and if so, return a warning
+            if let Some(Value::Array(password_history)) = &cipher.password_history {
+                for pwh in password_history {
+                    if let Value::Object(pwo) = pwh {
+                        if pwo.get("password").is_some_and(|p| !p.is_string()) {
+                            validation_errors.insert(
+                                format!("Ciphers[{index}].Notes"),
+                                serde_json::to_value([
+                                    "The password history contains a `null` value. Only strings are allowed.",
+                                ])
+                                .unwrap(),
+                            );
+                            break;
+                        }
+                    }
+                }
+            }
         }
+
         if !validation_errors.is_empty() {
             let err_json = json!({
                 "message": "The model state is invalid.",
@@ -153,27 +174,70 @@ impl Cipher {
             .as_ref()
             .and_then(|s| {
                 serde_json::from_str::<Vec<LowerCase<Value>>>(s)
-                    .inspect_err(|e| warn!("Error parsing fields {:?}", e))
+                    .inspect_err(|e| warn!("Error parsing fields {e:?} for {}", self.uuid))
                     .ok()
             })
-            .map(|d| d.into_iter().map(|d| d.data).collect())
+            .map(|d| {
+                d.into_iter()
+                    .map(|mut f| {
+                        // Check if the `type` key is a number, strings break some clients
+                        // The fallback type is the hidden type `1`. this should prevent accidental data disclosure
+                        // If not try to convert the string value to a number and fallback to `1`
+                        // If it is both not a number and not a string, fallback to `1`
+                        match f.data.get("type") {
+                            Some(t) if t.is_number() => {}
+                            Some(t) if t.is_string() => {
+                                let type_num = &t.as_str().unwrap_or("1").parse::<u8>().unwrap_or(1);
+                                f.data["type"] = json!(type_num);
+                            }
+                            _ => {
+                                f.data["type"] = json!(1);
+                            }
+                        }
+                        f.data
+                    })
+                    .collect()
+            })
             .unwrap_or_default();
+
         let password_history_json: Vec<_> = self
             .password_history
             .as_ref()
             .and_then(|s| {
                 serde_json::from_str::<Vec<LowerCase<Value>>>(s)
-                    .inspect_err(|e| warn!("Error parsing password history {:?}", e))
+                    .inspect_err(|e| warn!("Error parsing password history {e:?} for {}", self.uuid))
                     .ok()
             })
-            .map(|d| d.into_iter().map(|d| d.data).collect())
+            .map(|d| {
+                // Check every password history item if they are valid and return it.
+                // If a password field has the type `null` skip it, it breaks newer Bitwarden clients
+                // A second check is done to verify the lastUsedDate exists and is a valid DateTime string, if not the epoch start time will be used
+                d.into_iter()
+                    .filter_map(|d| match d.data.get("password") {
+                        Some(p) if p.is_string() => Some(d.data),
+                        _ => None,
+                    })
+                    .map(|mut d| match d.get("lastUsedDate").and_then(|l| l.as_str()) {
+                        Some(l) => {
+                            d["lastUsedDate"] = json!(crate::util::validate_and_format_date(l));
+                            d
+                        }
+                        _ => {
+                            d["lastUsedDate"] = json!("1970-01-01T00:00:00.000000Z");
+                            d
+                        }
+                    })
+                    .collect()
+            })
             .unwrap_or_default();
 
         // Get the type_data or a default to an empty json object '{}'.
         // If not passing an empty object, mobile clients will crash.
-        let mut type_data_json = serde_json::from_str::<LowerCase<Value>>(&self.data)
-            .map(|d| d.data)
-            .unwrap_or_else(|_| Value::Object(serde_json::Map::new()));
+        let mut type_data_json =
+            serde_json::from_str::<LowerCase<Value>>(&self.data).map(|d| d.data).unwrap_or_else(|_| {
+                warn!("Error parsing data field for {}", self.uuid);
+                Value::Object(serde_json::Map::new())
+            });
 
         // NOTE: This was marked as *Backwards Compatibility Code*, but as of January 2021 this is still being used by upstream
         // Set the first element of the Uris array as Uri, this is needed several (mobile) clients.
@@ -189,10 +253,13 @@ impl Cipher {
 
         // Fix secure note issues when data is invalid
         // This breaks at least the native mobile clients
-        if self.atype == 2
-            && (self.data.is_empty() || self.data.eq("{}") || self.data.to_ascii_lowercase().eq("{\"type\":null}"))
-        {
-            type_data_json = json!({"type": 0});
+        if self.atype == 2 {
+            match type_data_json {
+                Value::Object(ref t) if t.get("type").is_some_and(|t| t.is_number()) => {}
+                _ => {
+                    type_data_json = json!({"type": 0});
+                }
+            }
         }
 
         // Clone the type_data and add some default value.
@@ -200,7 +267,7 @@ impl Cipher {
 
         // NOTE: This was marked as *Backwards Compatibility Code*, but as of January 2021 this is still being used by upstream
         // data_json should always contain the following keys with every atype
-        data_json["fields"] = Value::Array(fields_json.clone());
+        data_json["fields"] = json!(fields_json);
         data_json["name"] = json!(self.name);
         data_json["notes"] = json!(self.notes);
         data_json["passwordHistory"] = Value::Array(password_history_json.clone());
@@ -253,6 +320,7 @@ impl Cipher {
             "secureNote": null,
             "card": null,
             "identity": null,
+            "sshKey": null,
         });
 
         // These values are only needed for user/default syncs
@@ -281,6 +349,7 @@ impl Cipher {
             2 => "secureNote",
             3 => "card",
             4 => "identity",
+            5 => "sshKey",
             _ => panic!("Wrong type"),
         };
 
