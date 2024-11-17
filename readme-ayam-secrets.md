@@ -167,3 +167,44 @@ ARG TARGETPLATFORM="aarch64"
 docker build -f ./docker/Dockerfile.ayam -t jayknyn/ayam-secure-secrets:1.31.0-2024.5.1 .
 
 ```
+
+---
+
+## Scratch
+
+export AYAM_VW_VERSION=1.31.1
+export AYAM_WEB_VAULT_VERSION=2024.5.1
+export AYAM_SECRETS_TAG=$AYAM_VW_VERSION-$AYAM_WEB_VAULT_VERSION
+docker buildx build --platform linux/arm64 -f ./docker/Dockerfile.ayam \
+--build-arg VW_VERSION=$AYAM_VW_VERSION \
+--build-arg DB=postgresql,enable_mimalloc \
+--build-arg TARGETARCH=arm \
+--build-arg TARGETVARIANT=64 \
+-t jayknyn/ayam-secure-secrets:$AYAM_SECRETS_TAG . --push
+
+export AYAM_VW_VERSION=1.31.1
+export AYAM_WEB_VAULT_VERSION=2024.5.1
+export AYAM_SECRETS_TAG=$AYAM_VW_VERSION-$AYAM_WEB_VAULT_VERSION
+docker buildx create --name secretsbuilder --use
+docker buildx build --platform linux/amd64,linux/arm64 -f ./docker/Dockerfile.ayam \
+  --build-arg VW_VERSION=$AYAM_VW_VERSION \
+  --build-arg DB=postgresql,enable_mimalloc \
+  --build-arg "TARGETARCH=\$TARGETARCH" \
+  --build-arg "TARGETVARIANT=\$TARGETVARIANT" \
+  -t jayknyn/ayam-secure-secrets:$AYAM_SECRETS_TAG . --push
+
+---
+
+export AYAM_VW_VERSION=1.31.0
+export AYAM_WEB_VAULT_VERSION=2024.5.1
+export AYAM_SECRETS_TAG=$AYAM_VW_VERSION-$AYAM_WEB_VAULT_VERSION
+docker buildx create --name mybuilder --use
+docker buildx build --platform linux/amd64,linux/arm64 -f ./docker/Dockerfile.ayam \
+  --build-arg VW_VERSION=$AYAM_VW_VERSION \
+  --build-arg DB=postgresql,enable_mimalloc \
+  --build-arg TARGETARCH=amd \
+  --build-arg TARGETVARIANT=64 \
+  -t jayknyn/ayam-secure-secrets:$AYAM_SECRETS_TAG . --push
+
+
+
