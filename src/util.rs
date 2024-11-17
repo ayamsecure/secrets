@@ -213,7 +213,7 @@ impl<'r, R: 'r + Responder<'r, 'static> + Send> Responder<'r, 'static> for Cache
         };
         res.set_raw_header("Cache-Control", cache_control_header);
 
-        let time_now = chrono::Local::now();
+        let time_now = Local::now();
         let expiry_time = time_now + chrono::TimeDelta::try_seconds(self.ttl.try_into().unwrap()).unwrap();
         res.set_raw_header("Expires", format_datetime_http(&expiry_time));
         Ok(res)
@@ -222,8 +222,8 @@ impl<'r, R: 'r + Responder<'r, 'static> + Send> Responder<'r, 'static> for Cache
 
 pub struct SafeString(String);
 
-impl std::fmt::Display for SafeString {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for SafeString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
     }
 }
@@ -438,13 +438,19 @@ pub fn get_env_bool(key: &str) -> Option<bool> {
 
 use chrono::{DateTime, Local, NaiveDateTime, TimeZone};
 
-// Format used by Bitwarden API
-const DATETIME_FORMAT: &str = "%Y-%m-%dT%H:%M:%S%.6fZ";
-
 /// Formats a UTC-offset `NaiveDateTime` in the format used by Bitwarden API
 /// responses with "date" fields (`CreationDate`, `RevisionDate`, etc.).
 pub fn format_date(dt: &NaiveDateTime) -> String {
-    dt.format(DATETIME_FORMAT).to_string()
+    dt.and_utc().to_rfc3339_opts(chrono::SecondsFormat::Micros, true)
+}
+
+/// Validates and formats a RFC3339 timestamp
+/// If parsing fails it will return the start of the unix datetime
+pub fn validate_and_format_date(dt: &str) -> String {
+    match DateTime::parse_from_rfc3339(dt) {
+        Ok(dt) => dt.to_rfc3339_opts(chrono::SecondsFormat::Micros, true),
+        _ => String::from("1970-01-01T00:00:00.000000Z"),
+    }
 }
 
 /// Formats a `DateTime<Local>` using the specified format string.
@@ -486,7 +492,7 @@ pub fn format_datetime_http(dt: &DateTime<Local>) -> String {
 }
 
 pub fn parse_date(date: &str) -> NaiveDateTime {
-    NaiveDateTime::parse_from_str(date, DATETIME_FORMAT).unwrap()
+    DateTime::parse_from_rfc3339(date).unwrap().naive_utc()
 }
 
 //
@@ -511,6 +517,28 @@ pub fn container_base_image() -> &'static str {
     } else {
         "Unknown"
     }
+}
+
+#[derive(Deserialize)]
+struct WebVaultVersion {
+    version: String,
+}
+
+pub fn get_web_vault_version() -> String {
+    let version_files = [
+        format!("{}/vw-version.json", CONFIG.web_vault_folder()),
+        format!("{}/version.json", CONFIG.web_vault_folder()),
+    ];
+
+    for version_file in version_files {
+        if let Ok(version_str) = std::fs::read_to_string(&version_file) {
+            if let Ok(version) = serde_json::from_str::<WebVaultVersion>(&version_str) {
+                return String::from(version.version.trim_start_matches('v'));
+            }
+        }
+    }
+
+    String::from("Version file missing")
 }
 
 //
@@ -590,7 +618,7 @@ impl<'de> Visitor<'de> for LowerCaseVisitor {
 fn _process_key(key: &str) -> String {
     match key.to_lowercase().as_ref() {
         "ssn" => "ssn".into(),
-        _ => self::lcase_first(key),
+        _ => lcase_first(key),
     }
 }
 

@@ -135,12 +135,13 @@ async fn put_eq_domains(data: Json<EquivDomainData>, headers: Headers, conn: DbC
 }
 
 #[get("/hibp/breach?<username>")]
-async fn hibp_breach(username: &str) -> JsonResult {
-    let url = format!(
-        "https://haveibeenpwned.com/api/v3/breachedaccount/{username}?truncateResponse=false&includeUnverified=false"
-    );
-
+async fn hibp_breach(username: &str, _headers: Headers) -> JsonResult {
+    let username: String = url::form_urlencoded::byte_serialize(username.as_bytes()).collect();
     if let Some(api_key) = crate::CONFIG.hibp_api_key() {
+        let url = format!(
+            "https://haveibeenpwned.com/api/v3/breachedaccount/{username}?truncateResponse=false&includeUnverified=false"
+        );
+
         let res = make_http_request(Method::GET, &url)?.header("hibp-api-key", api_key).send().await?;
 
         // If we get a 404, return a 404, it means no breached accounts
@@ -202,8 +203,10 @@ fn config() -> Json<Value> {
         "gitHash": option_env!("GIT_REV"),
         "server": {
           "name": "Vaultwarden",
-          "url": "https://github.com/dani-garcia/vaultwarden",
-          "version": crate::VERSION
+          "url": "https://github.com/dani-garcia/vaultwarden"
+        },
+        "settings": {
+            "disableUserRegistration": !crate::CONFIG.signups_allowed() && crate::CONFIG.signups_domains_whitelist().is_empty(),
         },
         "environment": {
           "vault": domain,

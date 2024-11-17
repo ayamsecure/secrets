@@ -1,3 +1,7 @@
+use super::{User, UserOrganization};
+use crate::api::EmptyResult;
+use crate::db::DbConn;
+use crate::error::MapResult;
 use chrono::{NaiveDateTime, Utc};
 use serde_json::Value;
 
@@ -77,7 +81,8 @@ impl Group {
                 json!({
                     "id": entry.collections_uuid,
                     "readOnly": entry.read_only,
-                    "hidePasswords": entry.hide_passwords
+                    "hidePasswords": entry.hide_passwords,
+                    "manage": false
                 })
             })
             .collect();
@@ -121,13 +126,6 @@ impl GroupUser {
         }
     }
 }
-
-use crate::db::DbConn;
-
-use crate::api::EmptyResult;
-use crate::error::MapResult;
-
-use super::{User, UserOrganization};
 
 /// Database methods
 impl Group {

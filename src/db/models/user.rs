@@ -1,3 +1,4 @@
+use crate::util::{format_date, get_uuid, retry};
 use chrono::{NaiveDateTime, TimeDelta, Utc};
 use serde_json::Value;
 
@@ -90,7 +91,7 @@ impl User {
         let email = email.to_lowercase();
 
         Self {
-            uuid: crate::util::get_uuid(),
+            uuid: get_uuid(),
             enabled: true,
             created_at: now,
             updated_at: now,
@@ -107,7 +108,7 @@ impl User {
             salt: crypto::get_random_bytes::<64>().to_vec(),
             password_iterations: CONFIG.password_iterations(),
 
-            security_stamp: crate::util::get_uuid(),
+            security_stamp: get_uuid(),
             stamp_exception: None,
 
             password_hint: None,
@@ -144,14 +145,14 @@ impl User {
 
     pub fn check_valid_recovery_code(&self, recovery_code: &str) -> bool {
         if let Some(ref totp_recover) = self.totp_recover {
-            crate::crypto::ct_eq(recovery_code, totp_recover.to_lowercase())
+            crypto::ct_eq(recovery_code, totp_recover.to_lowercase())
         } else {
             false
         }
     }
 
     pub fn check_valid_api_key(&self, key: &str) -> bool {
-        matches!(self.api_key, Some(ref api_key) if crate::crypto::ct_eq(api_key, key))
+        matches!(self.api_key, Some(ref api_key) if crypto::ct_eq(api_key, key))
     }
 
     /// Set the password hash generated
@@ -188,7 +189,7 @@ impl User {
     }
 
     pub fn reset_security_stamp(&mut self) {
-        self.security_stamp = crate::util::get_uuid();
+        self.security_stamp = get_uuid();
     }
 
     /// Set the stamp_exception to only allow a subsequent request matching a specific route using the current security-stamp.
@@ -259,6 +260,7 @@ impl User {
             "forcePasswordReset": false,
             "avatarColor": self.avatar_color,
             "usesKeyConnector": false,
+            "creationDate": format_date(&self.created_at),
             "object": "profile",
         })
     }
@@ -340,7 +342,7 @@ impl User {
         let updated_at = Utc::now().naive_utc();
 
         db_run! {conn: {
-            crate::util::retry(|| {
+            retry(|| {
                 diesel::update(users::table)
                     .set(users::updated_at.eq(updated_at))
                     .execute(conn)
@@ -357,7 +359,7 @@ impl User {
 
     async fn _update_revision(uuid: &str, date: &NaiveDateTime, conn: &mut DbConn) -> EmptyResult {
         db_run! {conn: {
-            crate::util::retry(|| {
+            retry(|| {
                 diesel::update(users::table.filter(users::uuid.eq(uuid)))
                     .set(users::updated_at.eq(date))
                     .execute(conn)

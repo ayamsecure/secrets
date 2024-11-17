@@ -10,6 +10,7 @@ use rocket::{
 };
 use serde_json::Value;
 
+use crate::auth::ClientVersion;
 use crate::util::NumberOrString;
 use crate::{
     api::{self, core::log_event, EmptyResult, JsonResult, Notify, PasswordOrOtpData, UpdateType},
@@ -104,11 +105,27 @@ struct SyncData {
 }
 
 #[get("/sync?<data..>")]
-async fn sync(data: SyncData, headers: Headers, mut conn: DbConn) -> Json<Value> {
+async fn sync(
+    data: SyncData,
+    headers: Headers,
+    client_version: Option<ClientVersion>,
+    mut conn: DbConn,
+) -> Json<Value> {
     let user_json = headers.user.to_json(&mut conn).await;
 
     // Get all ciphers which are visible by the user
-    let ciphers = Cipher::find_by_user_visible(&headers.user.uuid, &mut conn).await;
+    let mut ciphers = Cipher::find_by_user_visible(&headers.user.uuid, &mut conn).await;
+
+    // Filter out SSH keys if the client version is less than 2024.12.0
+    let show_ssh_keys = if let Some(client_version) = client_version {
+        let ver_match = semver::VersionReq::parse(">=2024.12.0").unwrap();
+        ver_match.matches(&client_version.0)
+    } else {
+        false
+    };
+    if !show_ssh_keys {
+        ciphers.retain(|c| c.atype != 5);
+    }
 
     let cipher_sync_data = CipherSyncData::new(&headers.user.uuid, CipherSyncType::User, &mut conn).await;
 
@@ -150,7 +167,6 @@ async fn sync(data: SyncData, headers: Headers, mut conn: DbConn) -> Json<Value>
         "ciphers": ciphers_json,
         "domains": domains_json,
         "sends": sends_json,
-        "unofficialServer": true,
         "object": "sync"
     }))
 }
@@ -217,7 +233,8 @@ pub struct CipherData {
     Login = 1,
     SecureNote = 2,
     Card = 3,
-    Identity = 4
+    Identity = 4,
+    SshKey = 5
     */
     pub r#type: i32,
     pub name: String,
@@ -229,11 +246,12 @@ pub struct CipherData {
     secure_note: Option<Value>,
     card: Option<Value>,
     identity: Option<Value>,
+    ssh_key: Option<Value>,
 
     favorite: Option<bool>,
     reprompt: Option<i32>,
 
-    password_history: Option<Value>,
+    pub password_history: Option<Value>,
 
     // These are used during key rotation
     // 'Attachments' is unused, contains map of {id: filename}
@@ -286,10 +304,6 @@ async fn post_ciphers_create(
     // err if this is not the case before creating an empty cipher.
     if data.cipher.organization_id.is_some() && data.collection_ids.is_empty() {
         err!("You must select at least one collection.");
-    }
-    // reverse sanity check to prevent corruptions
-    if !data.collection_ids.is_empty() && data.cipher.organization_id.is_none() {
-        err!("The client has not provided an organization id!");
     }
 
     // This check is usually only needed in update_cipher_from_data(), but we
@@ -474,6 +488,7 @@ pub async fn update_cipher_from_data(
         2 => data.secure_note,
         3 => data.card,
         4 => data.identity,
+        5 => data.ssh_key,
         _ => err!("Invalid type"),
     };
 
@@ -567,7 +582,7 @@ async fn post_ciphers_import(
     // Bitwarden does not process the import if there is one item invalid.
     // Since we check for the size of the encrypted note length, we need to do that here to pre-validate it.
     // TODO: See if we can optimize the whole cipher adding/importing and prevent duplicate code and checks.
-    Cipher::validate_notes(&data.ciphers)?;
+    Cipher::validate_cipher_data(&data.ciphers)?;
 
     // Read and create the folders
     let existing_folders: Vec<String> =
@@ -707,6 +722,7 @@ async fn put_cipher_partial(
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CollectionsAdminData {
+    #[serde(alias = "CollectionIds")]
     collection_ids: Vec<String>,
 }
 
