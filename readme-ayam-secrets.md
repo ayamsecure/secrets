@@ -6,25 +6,11 @@
 
 1. from terminal, `git checkout main` (ignore untracked changes) then `git fetch upstream` then `git merge upstream/main` then `git push origin main`
 2. `git checkout main-ayam` then `git merge main` to bring in new changes into main-ayam branch, resolve conflicts (accept incoming for ayam changes), `git add .` then `git commit` to conclude merge and `git push`
-3. from main-ayam branch, create new version branch `git checkout -b 1.32.0`
+3. from main-ayam branch, create new version branch `git checkout -b 1.32.4`
 4. confirm patches (below, usually no changes needed) are still applied and check for changes to Dockerfile.alpine
 5. use colima (x86 arch, 16GB, 4 CPU) on optimac to build image, ensure logged in to docker hub for push
-6. git push changes and after testing on staging service merge into main-ayam via PR
+6. git push changes and after testing on staging service merge into main-ayam via PR (msg: "updates for 1.32.0 with web vault 2024.6.2")
 7. use `build-images.sh` to build and push both arm and amd images
-
-```
-# old build command, now using build-images.sh
-
-export AYAM_VW_VERSION=1.32.0
-export AYAM_WEB_VAULT_VERSION=2024.6.2
-export AYAM_SECRETS_TAG=$AYAM_VW_VERSION-$AYAM_WEB_VAULT_VERSION
-docker buildx build --platform linux/amd64,linux/arm64 -f ./docker/Dockerfile.ayam \
---build-arg VW_VERSION=$AYAM_VW_VERSION \
---build-arg DB=postgresql,enable_mimalloc \
---build-arg TARGETARCH=arm \
---build-arg TARGETVARIANT=64 \
--t jayknyn/ayam-secure-secrets:$AYAM_SECRETS_TAG . --push
-```
 
 Notes:
 
@@ -40,6 +26,7 @@ Notes:
 - 1.31.0 matches upstream, api-config.json is not in upstream, update version here
 - 1.31.1 testing multiarch build
 - 1.32.0, no major changes, need to update web-vault, then release, multi-arch build not succeeding with same tag
+- 1.32.4, security fixes, email template changes
 
 ## Changelog
 
@@ -58,13 +45,13 @@ Notes:
 
 /src/api/web.rs:
 
-- ln 154 in func static_files, disable mail-github.png
+- ln 251 in func static_files, disable mail-github.png
 
 /src/mail.rs
 
-- ln 585 in fn send_email, disable attaching mail-github.png singlePart
+- ln 650 in fn send_email, disable attaching mail-github.png singlePart
 
-/src/static/images to change:
+/src/static/images changed to ayamsecure:
 
 - logo-gray.png
 - vaultwarden-icon.png
@@ -100,8 +87,8 @@ Notes:
 
 /src/static/templates/email/email_footer.hbs
 
-- ln 8 and ln 10, font-size: 16px; line-height: 25px;
-- ln 21 url ayamsecure
+- ln 8, ln 10, ln 13: font-size: 16px; line-height: 25px;
+- ln 13 url ayamsecure
 
 /src/static/templates/email/email_footer_text.hbs
 
@@ -187,7 +174,7 @@ export AYAM_WEB_VAULT_VERSION=2024.5.1
 export AYAM_SECRETS_TAG=$AYAM_VW_VERSION-$AYAM_WEB_VAULT_VERSION
 docker buildx create --name secretsbuilder --use
 docker buildx build --platform linux/amd64,linux/arm64 -f ./docker/Dockerfile.ayam \
-  --build-arg VW_VERSION=$AYAM_VW_VERSION \
+ --build-arg VW_VERSION=$AYAM_VW_VERSION \
   --build-arg DB=postgresql,enable_mimalloc \
   --build-arg "TARGETARCH=\$TARGETARCH" \
   --build-arg "TARGETVARIANT=\$TARGETVARIANT" \
@@ -200,11 +187,22 @@ export AYAM_WEB_VAULT_VERSION=2024.5.1
 export AYAM_SECRETS_TAG=$AYAM_VW_VERSION-$AYAM_WEB_VAULT_VERSION
 docker buildx create --name mybuilder --use
 docker buildx build --platform linux/amd64,linux/arm64 -f ./docker/Dockerfile.ayam \
-  --build-arg VW_VERSION=$AYAM_VW_VERSION \
+ --build-arg VW_VERSION=$AYAM_VW_VERSION \
   --build-arg DB=postgresql,enable_mimalloc \
   --build-arg TARGETARCH=amd \
   --build-arg TARGETVARIANT=64 \
   -t jayknyn/ayam-secure-secrets:$AYAM_SECRETS_TAG . --push
 
+---
 
+### old build command, now using build-images.sh
 
+export AYAM_VW_VERSION=1.32.0
+export AYAM_WEB_VAULT_VERSION=2024.6.2
+export AYAM_SECRETS_TAG=$AYAM_VW_VERSION-$AYAM_WEB_VAULT_VERSION
+docker buildx build --platform linux/amd64,linux/arm64 -f ./docker/Dockerfile.ayam \
+--build-arg VW_VERSION=$AYAM_VW_VERSION \
+--build-arg DB=postgresql,enable_mimalloc \
+--build-arg TARGETARCH=arm \
+--build-arg TARGETVARIANT=64 \
+-t jayknyn/ayam-secure-secrets:$AYAM_SECRETS_TAG . --push
