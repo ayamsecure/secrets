@@ -6,10 +6,10 @@
 
 1. from terminal, `git checkout main` (ignore untracked changes) then `git fetch upstream` then `git merge upstream/main` then `git push origin main`
 2. `git checkout main-ayam` then `git merge main` to bring in new changes into main-ayam branch, resolve conflicts (accept incoming for ayam changes), `git add .` then `git commit` to conclude merge and `git push`
-3. from main-ayam branch, create new version branch `git checkout -b 1.32.5`
+3. from main-ayam branch, create new version branch `git checkout -b 1.33.0`
 4. confirm patches (below, usually no changes needed) are still applied and check for changes to Dockerfile.alpine
 5. use colima (x86 arch, 16GB, 4 CPU) on optimac to `build-images.sh`, ensure logged in to docker hub for push
-6. git push changes and after testing on staging service merge into main-ayam via PR (msg: "updates for 1.32.5 with web vault 2024.6.2")
+6. git push changes and after testing on staging service merge into main-ayam via PR (msg: "updates for 1.33.0 with web vault 2024.6.2")
 
 Notes:
 
@@ -28,6 +28,7 @@ Notes:
 - 1.32.0, no major changes, need to update web-vault, then release, multi-arch build not succeeding with same tag
 - 1.32.4, security fixes, email template changes
 - 1.32.5, Added SSH-Key storage support, security fixes
+- 1.33.0, security fixes
 
 ## Changelog
 
@@ -46,11 +47,11 @@ Notes:
 
 /src/api/web.rs:
 
-- ln 251 in func static_files, disable mail-github.png
+- ln 215 in func `static_files`, disable mail-github.png
 
 /src/mail.rs
 
-- ln 650 in fn send_email, disable attaching mail-github.png singlePart
+- ln 647 in fn `send_email`, disable attaching mail-github.png singlePart
 
 /src/static/images changed to ayamsecure:
 
