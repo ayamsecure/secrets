@@ -38,6 +38,7 @@ pub fn routes() -> Vec<Route> {
         post_organization_collections,
         delete_organization_collection_member,
         post_organization_collection_delete_member,
+        post_bulk_access_collections,
         post_organization_collection_update,
         put_organization_collection_update,
         delete_organization_collection,
@@ -129,17 +130,17 @@ struct OrganizationUpdateData {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct NewCollectionData {
+struct FullCollectionData {
     name: String,
-    groups: Vec<NewCollectionGroupData>,
-    users: Vec<NewCollectionMemberData>,
+    groups: Vec<CollectionGroupData>,
+    users: Vec<CollectionMembershipData>,
     id: Option<CollectionId>,
     external_id: Option<String>,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct NewCollectionGroupData {
+struct CollectionGroupData {
     hide_passwords: bool,
     id: GroupId,
     read_only: bool,
@@ -148,7 +149,7 @@ struct NewCollectionGroupData {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct NewCollectionMemberData {
+struct CollectionMembershipData {
     hide_passwords: bool,
     id: MembershipId,
     read_only: bool,
@@ -429,13 +430,13 @@ async fn _get_org_collections(org_id: &OrganizationId, conn: &mut DbConn) -> Val
 async fn post_organization_collections(
     org_id: OrganizationId,
     headers: ManagerHeadersLoose,
-    data: Json<NewCollectionData>,
+    data: Json<FullCollectionData>,
     mut conn: DbConn,
 ) -> JsonResult {
     if org_id != headers.membership.org_uuid {
         err!("Organization not found", "Organization id's do not match");
     }
-    let data: NewCollectionData = data.into_inner();
+    let data: FullCollectionData = data.into_inner();
 
     let Some(org) = Organization::find_by_uuid(&org_id, &mut conn).await else {
         err!("Can't find organization details")
@@ -488,29 +489,104 @@ async fn post_organization_collections(
     Ok(Json(collection.to_json_details(&headers.membership.user_uuid, None, &mut conn).await))
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BulkCollectionAccessData {
+    collection_ids: Vec<CollectionId>,
+    groups: Vec<CollectionGroupData>,
+    users: Vec<CollectionMembershipData>,
+}
+
+#[post("/organizations/<org_id>/collections/bulk-access", data = "<data>", rank = 1)]
+async fn post_bulk_access_collections(
+    org_id: OrganizationId,
+    headers: ManagerHeadersLoose,
+    data: Json<BulkCollectionAccessData>,
+    mut conn: DbConn,
+) -> EmptyResult {
+    if org_id != headers.membership.org_uuid {
+        err!("Organization not found", "Organization id's do not match");
+    }
+    let data: BulkCollectionAccessData = data.into_inner();
+
+    if Organization::find_by_uuid(&org_id, &mut conn).await.is_none() {
+        err!("Can't find organization details")
+    };
+
+    for col_id in data.collection_ids {
+        let Some(collection) = Collection::find_by_uuid_and_org(&col_id, &org_id, &mut conn).await else {
+            err!("Collection not found")
+        };
+
+        // update collection modification date
+        collection.save(&mut conn).await?;
+
+        log_event(
+            EventType::CollectionUpdated as i32,
+            &collection.uuid,
+            &org_id,
+            &headers.user.uuid,
+            headers.device.atype,
+            &headers.ip.ip,
+            &mut conn,
+        )
+        .await;
+
+        CollectionGroup::delete_all_by_collection(&col_id, &mut conn).await?;
+        for group in &data.groups {
+            CollectionGroup::new(col_id.clone(), group.id.clone(), group.read_only, group.hide_passwords, group.manage)
+                .save(&mut conn)
+                .await?;
+        }
+
+        CollectionUser::delete_all_by_collection(&col_id, &mut conn).await?;
+        for user in &data.users {
+            let Some(member) = Membership::find_by_uuid_and_org(&user.id, &org_id, &mut conn).await else {
+                err!("User is not part of organization")
+            };
+
+            if member.access_all {
+                continue;
+            }
+
+            CollectionUser::save(
+                &member.user_uuid,
+                &col_id,
+                user.read_only,
+                user.hide_passwords,
+                user.manage,
+                &mut conn,
+            )
+            .await?;
+        }
+    }
+
+    Ok(())
+}
+
 #[put("/organizations/<org_id>/collections/<col_id>", data = "<data>")]
 async fn put_organization_collection_update(
     org_id: OrganizationId,
     col_id: CollectionId,
     headers: ManagerHeaders,
-    data: Json<NewCollectionData>,
+    data: Json<FullCollectionData>,
     conn: DbConn,
 ) -> JsonResult {
     post_organization_collection_update(org_id, col_id, headers, data, conn).await
 }
 
-#[post("/organizations/<org_id>/collections/<col_id>", data = "<data>")]
+#[post("/organizations/<org_id>/collections/<col_id>", data = "<data>", rank = 2)]
 async fn post_organization_collection_update(
     org_id: OrganizationId,
     col_id: CollectionId,
     headers: ManagerHeaders,
-    data: Json<NewCollectionData>,
+    data: Json<FullCollectionData>,
     mut conn: DbConn,
 ) -> JsonResult {
     if org_id != headers.org_id {
         err!("Organization not found", "Organization id's do not match");
     }
-    let data: NewCollectionData = data.into_inner();
+    let data: FullCollectionData = data.into_inner();
 
     if Organization::find_by_uuid(&org_id, &mut conn).await.is_none() {
         err!("Can't find organization details")
@@ -781,7 +857,7 @@ async fn get_collection_users(
 async fn put_collection_users(
     org_id: OrganizationId,
     col_id: CollectionId,
-    data: Json<Vec<MembershipData>>,
+    data: Json<Vec<CollectionMembershipData>>,
     headers: ManagerHeaders,
     mut conn: DbConn,
 ) -> EmptyResult {
@@ -915,31 +991,11 @@ async fn post_org_keys(
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct CollectionData {
-    id: CollectionId,
-    read_only: bool,
-    hide_passwords: bool,
-    manage: bool,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct MembershipData {
-    id: MembershipId,
-    read_only: bool,
-    hide_passwords: bool,
-    manage: bool,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 struct InviteData {
     emails: Vec<String>,
     groups: Vec<GroupId>,
     r#type: NumberOrString,
     collections: Option<Vec<CollectionData>>,
-    #[serde(default)]
-    access_all: bool,
     #[serde(default)]
     permissions: HashMap<String, Value>,
 }
@@ -954,7 +1010,7 @@ async fn send_invite(
     if org_id != headers.org_id {
         err!("Organization not found", "Organization id's do not match");
     }
-    let mut data: InviteData = data.into_inner();
+    let data: InviteData = data.into_inner();
 
     // HACK: We need the raw user-type to be sure custom role is selected to determine the access_all permission
     // The from_str() will convert the custom role type into a manager role type
@@ -972,13 +1028,11 @@ async fn send_invite(
     // HACK: This converts the Custom role which has the `Manage all collections` box checked into an access_all flag
     // Since the parent checkbox is not sent to the server we need to check and verify the child checkboxes
     // If the box is not checked, the user will still be a manager, but not with the access_all permission
-    if raw_type.eq("4")
-        && data.permissions.get("editAnyCollection") == Some(&json!(true))
-        && data.permissions.get("deleteAnyCollection") == Some(&json!(true))
-        && data.permissions.get("createNewCollections") == Some(&json!(true))
-    {
-        data.access_all = true;
-    }
+    let access_all = new_type >= MembershipType::Admin
+        || (raw_type.eq("4")
+            && data.permissions.get("editAnyCollection") == Some(&json!(true))
+            && data.permissions.get("deleteAnyCollection") == Some(&json!(true))
+            && data.permissions.get("createNewCollections") == Some(&json!(true)));
 
     let mut user_created: bool = false;
     for email in data.emails.iter() {
@@ -1016,7 +1070,6 @@ async fn send_invite(
         };
 
         let mut new_member = Membership::new(user.uuid.clone(), org_id.clone());
-        let access_all = data.access_all;
         new_member.access_all = access_all;
         new_member.atype = new_type;
         new_member.status = member_status;
@@ -1467,8 +1520,6 @@ struct EditUserData {
     collections: Option<Vec<CollectionData>>,
     groups: Option<Vec<GroupId>>,
     #[serde(default)]
-    access_all: bool,
-    #[serde(default)]
     permissions: HashMap<String, Value>,
 }
 
@@ -1494,7 +1545,7 @@ async fn edit_member(
     if org_id != headers.org_id {
         err!("Organization not found", "Organization id's do not match");
     }
-    let mut data: EditUserData = data.into_inner();
+    let data: EditUserData = data.into_inner();
 
     // HACK: We need the raw user-type to be sure custom role is selected to determine the access_all permission
     // The from_str() will convert the custom role type into a manager role type
@@ -1507,13 +1558,11 @@ async fn edit_member(
     // HACK: This converts the Custom role which has the `Manage all collections` box checked into an access_all flag
     // Since the parent checkbox is not sent to the server we need to check and verify the child checkboxes
     // If the box is not checked, the user will still be a manager, but not with the access_all permission
-    if raw_type.eq("4")
-        && data.permissions.get("editAnyCollection") == Some(&json!(true))
-        && data.permissions.get("deleteAnyCollection") == Some(&json!(true))
-        && data.permissions.get("createNewCollections") == Some(&json!(true))
-    {
-        data.access_all = true;
-    }
+    let access_all = new_type >= MembershipType::Admin
+        || (raw_type.eq("4")
+            && data.permissions.get("editAnyCollection") == Some(&json!(true))
+            && data.permissions.get("deleteAnyCollection") == Some(&json!(true))
+            && data.permissions.get("createNewCollections") == Some(&json!(true)));
 
     let mut member_to_edit = match Membership::find_by_uuid_and_org(&member_id, &org_id, &mut conn).await {
         Some(member) => member,
@@ -1559,7 +1608,7 @@ async fn edit_member(
         }
     }
 
-    member_to_edit.access_all = data.access_all;
+    member_to_edit.access_all = access_all;
     member_to_edit.atype = new_type as i32;
 
     // Delete all the odd collections
@@ -1568,7 +1617,7 @@ async fn edit_member(
     }
 
     // If no accessAll, add the collections received
-    if !data.access_all {
+    if !access_all {
         for col in data.collections.iter().flatten() {
             match Collection::find_by_uuid_and_org(&col.id, &org_id, &mut conn).await {
                 None => err!("Collection not found in Organization"),
@@ -1754,7 +1803,7 @@ use super::ciphers::CipherData;
 #[serde(rename_all = "camelCase")]
 struct ImportData {
     ciphers: Vec<CipherData>,
-    collections: Vec<NewCollectionData>,
+    collections: Vec<FullCollectionData>,
     collection_relationships: Vec<RelationsData>,
 }
 
@@ -2549,7 +2598,7 @@ struct GroupRequest {
     #[serde(default)]
     access_all: bool,
     external_id: Option<String>,
-    collections: Vec<SelectedCollection>,
+    collections: Vec<CollectionData>,
     users: Vec<MembershipId>,
 }
 
@@ -2570,14 +2619,14 @@ impl GroupRequest {
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct SelectedCollection {
+struct CollectionData {
     id: CollectionId,
     read_only: bool,
     hide_passwords: bool,
     manage: bool,
 }
 
-impl SelectedCollection {
+impl CollectionData {
     pub fn to_collection_group(&self, groups_uuid: GroupId) -> CollectionGroup {
         CollectionGroup::new(self.id.clone(), groups_uuid, self.read_only, self.hide_passwords, self.manage)
     }
@@ -2660,7 +2709,7 @@ async fn put_group(
 
 async fn add_update_group(
     mut group: Group,
-    collections: Vec<SelectedCollection>,
+    collections: Vec<CollectionData>,
     members: Vec<MembershipId>,
     org_id: OrganizationId,
     headers: &AdminHeaders,
