@@ -6,16 +6,16 @@
 
 1. from terminal, `git checkout main` (ignore untracked changes) then `git fetch upstream` then `git merge upstream/main` then `git push origin main`
 2. `git checkout main-ayam` then `git merge main` to bring in new changes into main-ayam branch, resolve conflicts (accept incoming for ayam changes), `git add .` then `git commit` to conclude merge and `git push`
-3. from main-ayam branch, create new version branch `git checkout -b 1.33.0`
+3. from main-ayam branch, create new version branch `git checkout -b 1.33.2`
 4. confirm patches (below, usually no changes needed) are still applied and check for changes to Dockerfile.alpine
 5. use colima (x86 arch, 16GB, 4 CPU) on optimac to `build-images.sh`, ensure logged in to docker hub for push
-6. git push changes and after testing on staging service merge into main-ayam via PR (msg: "updates for 1.33.0 with web vault 2024.6.2")
+6. git push changes and after testing on staging service merge into main-ayam via PR (msg: "updates for 1.33.2 with web vault 2025.1.1")
 
 Notes:
 
-- Dockerfile.ayam is based on Dockerfile.alpine, so always compare after pulling in updates from upstream before docker build
-- update the secrets-web docker image tag build-images.sh and Dockerfile.ayam
-- build-images.sh builds and pushes both arm and amd images
+- `Dockerfile.ayam` is based on `Dockerfile.alpine`, so always compare after pulling in updates from upstream before docker build
+- update the secrets-web docker image tag in `build-images.sh` and `Dockerfile.ayam`
+- `build-images.sh` builds and pushes both arm and amd images
 
 ## Version numbers
 
@@ -29,6 +29,7 @@ Notes:
 - 1.32.4, security fixes, email template changes
 - 1.32.5, Added SSH-Key storage support, security fixes
 - 1.33.0, security fixes
+- 1.33.2, bugs, icons on desktop, mobile sync
 
 ## Changelog
 
@@ -51,7 +52,7 @@ Notes:
 
 /src/mail.rs
 
-- ln 647 in fn `send_email`, disable attaching mail-github.png singlePart
+- ln 668 in fn `send_email`, disable attaching mail-github.png singlePart
 
 /src/static/images changed to ayamsecure:
 
@@ -201,7 +202,7 @@ docker buildx build --platform linux/amd64,linux/arm64 -f ./docker/Dockerfile.ay
 ### old build command, now using build-images.sh
 
 export AYAM_VW_VERSION=1.32.0
-export AYAM_WEB_VAULT_VERSION=2024.6.2
+export AYAM_WEB_VAULT_VERSION=2025.1.1
 export AYAM_SECRETS_TAG=$AYAM_VW_VERSION-$AYAM_WEB_VAULT_VERSION
 docker buildx build --platform linux/amd64,linux/arm64 -f ./docker/Dockerfile.ayam \
 --build-arg VW_VERSION=$AYAM_VW_VERSION \

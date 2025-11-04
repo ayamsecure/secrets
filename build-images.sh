@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Set environment variables
-export AYAM_VW_VERSION=1.33.0
-export AYAM_WEB_VAULT_VERSION=2024.6.2
+export AYAM_VW_VERSION=1.33.2
+export AYAM_WEB_VAULT_VERSION=2025.1.1
 export AYAM_SECRETS_TAG="$AYAM_VW_VERSION-$AYAM_WEB_VAULT_VERSION"
 
 # Create a new builder instance if not already created
