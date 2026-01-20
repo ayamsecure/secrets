@@ -1,0 +1,145 @@
+.providers-2fa-3,
+app-root a[routerlink="/signup"],
+app-user-layout app-danger-zone button:nth-child(1),
+bit-nav-logo bit-nav-item .bwi-shield,
+bit-dialog div.tw-ml-4:has(bit-form-control input),
+bit-dialog div.tw-col-span-4:has(input[formcontrolname*=access], input[formcontrolname*=manage]),
+app-security>app-two-factor-setup>form,
+app-org-reports-home>app-report-list>div.tw-inline-grid>div:nth-child(6),
+app-org-account form.ng-untouched:nth-child(5),
+app-organization-plans>form>bit-section:nth-child(2),
+bit-nav-item[route="settings/two-factor"],
+a[href$="/settings/two-factor"],
+.vw-other-login,
+.vw-or-text,
+.vw-passkey-login,
+app-user-layout app-password-settings app-webauthn-login-settings,
+.vw-sso-login,
+.vw-email-sso,
+a[href$="/settings/sponsored-families"],
+bit-nav-item[route="settings/subscription"],
+.vw-hide,
+head {
+  display: none !important
+}
+
+bit-nav-logo bit-nav-item a:before {
+  content: "";
+  background-image: url("../images/icon-white.svg");
+  background-repeat: no-repeat;
+  background-position: center center;
+  height: 32px;
+  display: block
+}
+
+auth-anon-layout .tw-fixed {
+  display: none !important
+}
+
+auth-anon-layout main div.tw-text-center bit-icon {
+  width: 300px !important;
+  height: 100px !important;
+  margin-bottom: 1.5rem !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  display: block !important;
+}
+
+auth-anon-layout main div.tw-text-center bit-icon>svg {
+  display: none !important
+}
+
+auth-anon-layout main div.tw-text-center bit-icon::before {
+  content: "" !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  background-image: url("../images/logo-dark@2x.png") !important;
+  background-repeat: no-repeat !important;
+  background-position: center center !important;
+  background-size: contain !important
+}
+
+body.theme_dark auth-anon-layout main div.tw-text-center bit-icon,
+body.theme_nord auth-anon-layout main div.tw-text-center bit-icon {}
+
+body.theme_dark auth-anon-layout main div.tw-text-center bit-icon>svg,
+body.theme_nord auth-anon-layout main div.tw-text-center bit-icon>svg {
+  display: none !important
+}
+
+body.theme_dark auth-anon-layout main div.tw-text-center bit-icon::before,
+body.theme_nord auth-anon-layout main div.tw-text-center bit-icon::before {
+  content: "" !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  background-image: url("../images/logo-white@2x.png") !important;
+  background-repeat: no-repeat !important;
+  background-position: center center !important;
+  background-size: contain !important
+}
+
+@media (prefers-color-scheme: dark) {
+  body:not(.theme_light) auth-anon-layout main div.tw-text-center bit-icon {}
+
+  body:not(.theme_light) auth-anon-layout main div.tw-text-center bit-icon>svg {
+    display: none !important
+  }
+
+  body:not(.theme_light) auth-anon-layout main div.tw-text-center bit-icon::before {
+    content: "" !important;
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    background-image: url("../images/logo-white@2x.png") !important;
+    background-repeat: no-repeat !important;
+    background-position: center center !important;
+    background-size: contain !important
+  }
+}
+
+app-user-layout bit-nav-logo bit-icon {
+  width: 180px !important;
+  height: 40px !important;
+}
+
+app-user-layout bit-nav-logo bit-icon>svg {
+  display: none !important
+}
+
+app-user-layout bit-nav-logo bit-icon::before {
+  content: "" !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  background-image: url("../images/ayam-secrets-password-manager-logo.svg") !important;
+  background-repeat: no-repeat !important;
+  background-position: center center !important;
+  background-size: contain !important
+}
+
+app-organization-layout bit-nav-logo bit-icon {
+  width: 180px !important;
+  height: 40px !important;
+}
+
+app-organization-layout bit-nav-logo bit-icon>svg {
+  display: none !important
+}
+
+app-organization-layout bit-nav-logo bit-icon::before {
+  content: "" !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  background-image: url("../images/ayam-secrets-admin-console-logo.svg") !important;
+  background-repeat: no-repeat !important;
+  background-position: center center !important;
+  background-size: contain !important
+}
+
+.footer-text,
+#vw-disclaimer {
+  display: none !important
+}
