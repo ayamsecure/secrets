@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Set environment variables
-export AYAM_VW_VERSION=1.34.3
-export AYAM_WEB_VAULT_VERSION=2025.10.1-7
+export AYAM_VW_VERSION=1.35.2
+export AYAM_WEB_VAULT_VERSION=2025.12.0
 export AYAM_SECRETS_TAG="$AYAM_VW_VERSION-$AYAM_WEB_VAULT_VERSION"
 
 # Create a new builder instance if not already created
@@ -16,8 +16,8 @@ else
 fi
 
 # Array of architectures to build
-# ARCHS=("arm64" "amd64")
-ARCHS=("arm64")
+ARCHS=("arm64" "amd64")
+# ARCHS=("arm64")
 
 # Loop through each architecture and build
 for arch in "${ARCHS[@]}"; do

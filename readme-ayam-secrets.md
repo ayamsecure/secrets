@@ -6,10 +6,10 @@
 
 1. from terminal, `git checkout main` (ignore untracked changes) then `git fetch upstream` then `git merge upstream/main` then `git push origin main`
 2. `git checkout main-ayam` then `git merge main` to bring in new changes into main-ayam branch, resolve conflicts (accept incoming for ayam changes), `git add .` then `git commit` to conclude merge and `git push`
-3. from main-ayam branch, create new version branch `git checkout -b 1.34.3`
+3. from main-ayam branch, create new version branch `git checkout -b 1.35.2`
 4. confirm patches (below, usually no changes needed) are still applied and check for changes to Dockerfile.alpine
 5. use colima (x86 arch, 16GB, 3 CPU) on optimac to `build-images.sh`, ensure logged in to docker hub for push
-6. git push changes and after testing on staging service merge into main-ayam via PR (msg: "updates for 1.34.3 with web vault 2025.10.1")
+6. git push changes and after testing on staging service merge into main-ayam via PR (msg: "updates for 1.35.2 with web vault 2025.12.0")
 
 Notes:
 
@@ -31,6 +31,7 @@ Notes:
 - 1.33.0, security fixes
 - 1.33.2, bugs, icons on desktop, mobile sync
 - 1.34.3, default web-vault updated to 2025.7.0, new registration flow with email verification, mTLS
+- 1.35.2, sso has been added, no issues with patches
 
 ## Changelog
 
@@ -49,11 +50,11 @@ Notes:
 
 /src/api/web.rs:
 
-- ln 219 in func `static_files`, disable mail-github.png
+- ln 220 in func `static_files`, disable mail-github.png
 
 /src/mail.rs
 
-- ln 712 in func `send_email`, disable attaching mail-github.png singlePart
+- ln 712 in func `send_email`, disable attaching mail-github.png and .singlePart
 
 /src/static/images changed to ayamsecure:
 
@@ -70,7 +71,7 @@ Notes:
 /src/static/templates/admin/base.hbs:
 
 - ln 8 change title to AS
-- ln 16 navbar-brand to AS
+- ln 31 navbar-brand to AS
 
 /src/static/templates/admin/login.hbs:
 
