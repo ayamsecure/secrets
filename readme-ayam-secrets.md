@@ -6,10 +6,10 @@
 
 1. from terminal, `git checkout main` (ignore untracked changes) then `git fetch upstream` then `git merge upstream/main` then `git push origin main`
 2. `git checkout main-ayam` then `git merge main` to bring in new changes into main-ayam branch, resolve conflicts (accept incoming for ayam changes), `git add .` then `git commit` to conclude merge and `git push`
-3. from main-ayam branch, create new version branch `git checkout -b 1.35.2`
+3. from main-ayam branch, create new version branch `git checkout -b 1.36.0`
 4. confirm patches (below, usually no changes needed) are still applied and check for changes to Dockerfile.alpine
-5. use colima (x86 arch, 16GB, 3 CPU) on optimac to `build-images.sh`, ensure logged in to docker hub for push
-6. git push changes and after testing on staging service merge into main-ayam via PR (msg: "updates for 1.35.2 with web vault 2025.12.0")
+5. use colima (x86 arch, 16GB, 4 CPU) on optimac to `build-images.sh`, ensure logged in to docker hub for push
+6. git push changes and after testing on staging service merge into main-ayam via PR (msg: "updates for 1.36.0 with web vault 2026.4.1")
 
 Notes:
 
@@ -19,19 +19,20 @@ Notes:
 
 ## Version numbers
 
-- 1.29.1, matches upstream 1.29.1
-- 1.29.3a, patch fix for mobile clients issue, based off of 1.29.2 and latest commits to main, waiting on upstream 1.29.3
-- 1.30.1, matches upstream 1.30.1
-- 1.30.5 matches upstream
-- 1.31.0 matches upstream, api-config.json is not in upstream, update version here
-- 1.31.1 testing multiarch build
-- 1.32.0, no major changes, need to update web-vault, then release, multi-arch build not succeeding with same tag
-- 1.32.4, security fixes, email template changes
-- 1.32.5, Added SSH-Key storage support, security fixes
-- 1.33.0, security fixes
-- 1.33.2, bugs, icons on desktop, mobile sync
-- 1.34.3, default web-vault updated to 2025.7.0, new registration flow with email verification, mTLS
+- 1.36.0, security fixes
 - 1.35.2, sso has been added, no issues with patches
+- 1.34.3, default web-vault updated to 2025.7.0, new registration flow with email verification, mTLS
+- 1.33.2, bugs, icons on desktop, mobile sync
+- 1.33.0, security fixes
+- 1.32.5, Added SSH-Key storage support, security fixes
+- 1.32.4, security fixes, email template changes
+- 1.32.0, no major changes, need to update web-vault, then release, multi-arch build not succeeding with same tag
+- 1.31.1 testing multiarch build
+- 1.31.0 matches upstream, api-config.json is not in upstream, update version here
+- 1.30.5 matches upstream
+- 1.30.1, matches upstream 1.30.1
+- 1.29.3a, patch fix for mobile clients issue, based off of 1.29.2 and latest commits to main, waiting on upstream 1.29.3
+- 1.29.1, matches upstream 1.29.1
 
 ## Changelog
 
@@ -50,11 +51,11 @@ Notes:
 
 /src/api/web.rs:
 
-- ln 220 in func `static_files`, disable mail-github.png
+- ln 249 in func `static_files`, disable mail-github.png
 
 /src/mail.rs
 
-- ln 712 in func `send_email`, disable attaching mail-github.png and .singlePart
+- ln 703 in func `send_email`, disable attaching mail-github.png and .singlePart
 
 /src/static/images changed to ayamsecure:
 
