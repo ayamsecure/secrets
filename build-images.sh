@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Set environment variables
-export AYAM_VW_VERSION=1.37.1
+export AYAM_VW_VERSION=1.37.2
 export AYAM_WEB_VAULT_VERSION=2026.6.4
 export AYAM_SECRETS_TAG="$AYAM_VW_VERSION-$AYAM_WEB_VAULT_VERSION"
 

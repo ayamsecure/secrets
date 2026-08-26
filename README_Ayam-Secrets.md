@@ -19,6 +19,7 @@ Notes:
 
 ## Version numbers
 
+- 1.37.2, backend fixes for new bw clients, 2026.8.0+
 - 1.37.1, backend fixes for new bw clients
 - 1.36.0, security fixes
 - 1.35.2, sso has been added, no issues with patches
@@ -52,7 +53,7 @@ Notes:
 
 /src/api/web.rs:
 
-- ln 249 in func `static_files`, disable mail-github.png
+- ln 282 in func `static_files`, disable mail-github.png
 
 /src/mail.rs
 
@@ -82,7 +83,7 @@ Notes:
 
 /src/static/templates/admin/users.hbs:
 
-- ln 2 moved Invite User section to top
+- ln 3 moved Invite User section to top
 
 /src/static/templates/email/change_email.hbs
 
@@ -92,14 +93,14 @@ Notes:
 
 - ln 7 your web vault
 
+/src/static/templates/email/email_footer_text.hbs
+
+- ln 3 url ayamsecure
+
 /src/static/templates/email/email_footer.hbs
 
 - ln 8, ln 10, ln 13: font-size: 16px; line-height: 25px;
 - ln 13 url ayamsecure
-
-/src/static/templates/email/email_footer_text.hbs
-
-- ln 3 url ayamsecure
 
 /src/static/templates/email/email_header.hbs
 
