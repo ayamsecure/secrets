@@ -4,21 +4,23 @@
 
 ## When a new `dani-garcia/vaultwarden` release has been published:
 
-1. from terminal, `git checkout main` (ignore untracked changes) then `git fetch upstream` then `git merge upstream/main` then `git push origin main`
-2. `git checkout main-ayam` then `git merge main` to bring in new changes into main-ayam branch, resolve conflicts (accept incoming for ayam changes), `git add .` then `git commit` to conclude merge and `git push`
-3. from main-ayam branch, create new version branch `git checkout -b 1.37.1`
-4. confirm patches (below, usually no changes needed) are still applied and check for changes to Dockerfile.alpine
-5. use colima (x86 arch, 16GB, 4 CPU) on optimac to `./build-images.sh`, ensure logged in to docker hub for push
-6. git push changes and after testing on staging service merge into main-ayam via PR (msg: "updates for 1.37.1 with web vault 2026.6.4")
+1. from terminal, `git checkout main-ayam` and `git pull`
+2. `git checkout main` (ignore untracked changes) then `git fetch upstream` then `git merge upstream/main` then `git push origin main`
+3. `git checkout main-ayam` then `git merge main` to bring in new changes into main-ayam branch, resolve conflicts (accept incoming for ayam changes), `git add .` then `git commit` to conclude merge and `git push`
+4. from main-ayam branch, create new version branch `git checkout -b 1.37.4`
+5. confirm patches (below, usually no changes needed) are still applied and check for changes to `Dockerfile.alpine` vs `Dockerfile.ayam`
+6. update image tag then use colima (x86 arch, 16GB, 4 CPU) on optijax to `./build-images.sh`, ensure logged in to docker hub for push
+7. git push changes and after testing on staging service merge into main-ayam via PR (msg: "updates for 1.37.4 with web vault 2026.7.0")
 
 Notes:
 
 - `Dockerfile.ayam` is based on `Dockerfile.alpine`, so always compare after pulling in updates from upstream before docker build
 - update the secrets-web docker image tag in `build-images.sh` and `Dockerfile.ayam`
-- `build-images.sh` builds and pushes both arm and amd images
+- `build-images.sh` builds and pushes both `arm` and `amd` images
 
 ## Version numbers
 
+- 1.37.4, security fixes, trusted proxies changes, feature flags changes
 - 1.37.2, backend fixes for new bw clients, 2026.8.0+
 - 1.37.1, backend fixes for new bw clients
 - 1.36.0, security fixes
@@ -53,11 +55,11 @@ Notes:
 
 /src/api/web.rs:
 
-- ln 282 in func `static_files`, disable mail-github.png
+- ln 283 in func `static_files`, disable mail-github.png
 
 /src/mail.rs
 
-- ln 712 in func `send_email`, disable attaching mail-github.png and .singlePart
+- ln 742 in func `send_email`, disable attaching mail-github.png and .singlePart
 
 /src/static/images changed to ayamsecure:
 
