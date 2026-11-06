@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep*)",
+      "Bash(find*)",
+      "Bash(ls*)",
+      "Bash(awk*)",
+      "Read(//Users/jay/code/**)",
+      "Edit(//Users/jay/code/ayamsecure/secrets/**)",
+      "Edit(//Users/jay/code/ayamsecure/secrets-web/**)",
+      "Edit(//Users/jay/code/ayamsecure/secrets-web-source/**)",
+      "WebSearch",
+      "WebFetch"
+    ],
+    "deny": [
+      "Bash(git push *)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:gist.githubusercontent.com)",
+      "WebFetch(domain:objects.githubusercontent.com)",
+      "WebFetch(domain:pastebin.com)",
+      "WebFetch(domain:transfer.sh)"
+    ]
+  },
+  "outputStyle": "default",
+  "spinnerTipsEnabled": false,
+  "prefersReducedMotion": true
+}
