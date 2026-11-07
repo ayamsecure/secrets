@@ -7,10 +7,10 @@
 1. from terminal, `git checkout main-ayam` and `git pull`
 2. `git checkout main` (ignore untracked changes) then `git fetch upstream` then `git merge upstream/main` then `git push origin main`
 3. `git checkout main-ayam` then `git merge main` to bring in new changes into main-ayam branch, resolve conflicts (accept incoming for ayam changes), `git add .` then `git commit` to conclude merge and `git push`
-4. from main-ayam branch, create new version branch `git checkout -b 1.37.4`
+4. from main-ayam branch, create new version branch `git checkout -b 1.37.5`
 5. confirm patches (below, usually no changes needed) are still applied and check for changes to `Dockerfile.alpine` vs `Dockerfile.ayam`
 6. update image tag then use colima (x86 arch, 16GB, 4 CPU) on optijax to `./build-images.sh`, ensure logged in to docker hub for push
-7. git push changes and after testing on staging service merge into main-ayam via PR (msg: "updates for 1.37.4 with web vault 2026.7.0")
+7. git push changes and after testing on staging service merge into main-ayam via PR (msg: "updates for 1.37.5 with web vault 2026.10.1")
 
 Notes:
 
@@ -20,6 +20,7 @@ Notes:
 
 ## Version numbers
 
+- 1.37.5, security fix for 2 Med vulns, env config values have tighter constraints, verify before deploying
 - 1.37.4, security fixes, trusted proxies changes, feature flags changes
 - 1.37.2, backend fixes for new bw clients, 2026.8.0+
 - 1.37.1, backend fixes for new bw clients
@@ -55,11 +56,11 @@ Notes:
 
 /src/api/web.rs:
 
-- ln 283 in func `static_files`, disable mail-github.png
+- ln 287 in `STATIC_FILES`, disable mail-github.png
 
 /src/mail.rs
 
-- ln 742 in func `send_email`, disable attaching mail-github.png and .singlePart
+- ln 737 in func `send_email`, disable attaching mail-github.png and .singlePart
 
 /src/static/images changed to ayamsecure:
 

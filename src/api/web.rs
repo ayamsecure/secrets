@@ -287,7 +287,7 @@ pub struct StaticFile {
 pub static STATIC_FILES: LazyLock<HashMap<&'static str, StaticFile>> = LazyLock::new(|| {
     [
         ("404.png", ContentType::PNG, &include_bytes!("../static/images/404.png")[..]),
-        ("mail-github.png", ContentType::PNG, &include_bytes!("../static/images/mail-github.png")[..]),
+        // ("mail-github.png", ContentType::PNG, &include_bytes!("../static/images/mail-github.png")[..]),
         ("logo-gray.png", ContentType::PNG, &include_bytes!("../static/images/logo-gray.png")[..]),
         ("error-x.svg", ContentType::SVG, &include_bytes!("../static/images/error-x.svg")[..]),
         ("hibp.png", ContentType::PNG, &include_bytes!("../static/images/hibp.png")[..]),
