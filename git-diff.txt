@@ -1,0 +1,64 @@
+ .claude/settings.json                              |  27 +
+ .env.template                                      |  10 +
+ README.md                                          |  54 +-
+ README_Ayam-Secrets.md                             | 154 ++++++
+ api-config.json                                    |  17 +
+ archive/Dockerfile copy.ayam                       | 101 ++++
+ archive/compiled-in-browser-with-ayam.css          | 145 +++++
+ archive/compiled-in-browser-without-ayam.css       |  47 ++
+ archive/readme-ayam-secrets copy.md                | 120 ++++
+ {.github => archive}/workflows/build.yml           |   0
+ {.github => archive}/workflows/check-templates.yml |   0
+ {.github => archive}/workflows/hadolint.yml        |   0
+ {.github => archive}/workflows/release.yml         |   0
+ .../workflows/releasecache-cleanup.yml             |   0
+ {.github => archive}/workflows/trivy.yml           |   0
+ {.github => archive}/workflows/typos.yml           |   0
+ {.github => archive}/workflows/zizmor.yml          |   0
+ build-images.sh                                    |  58 ++
+ docker/Dockerfile.ayam                             | 160 ++++++
+ docker/arm64/Dockerfile.alpine                     | 118 ++++
+ docs/Release-Pipeline-Design.md                    | 603 +++++++++++++++++++++
+ .../down.sql                                       |  22 +
+ .../up.sql                                         |  13 +
+ .../down.sql                                       |  20 +
+ .../up.sql                                         |  13 +
+ .../down.sql                                       |  19 +
+ .../up.sql                                         |  11 +
+ src/api/admin.rs                                   |  38 +-
+ src/api/core/organizations.rs                      |  56 +-
+ src/api/web.rs                                     |   3 +-
+ src/config.rs                                      |   8 +
+ src/db/mod.rs                                      |  71 +++
+ src/db/models/cipher.rs                            |  12 +-
+ src/db/models/collection.rs                        |  14 +-
+ src/db/models/mod.rs                               |   4 +-
+ src/db/models/organization.rs                      | 343 +++++++++++-
+ src/db/schema.rs                                   |   9 +
+ src/mail.rs                                        |  12 +-
+ src/static/images/logo-gray.png                    | Bin 2406 -> 51533 bytes
+ src/static/images/vaultwarden-favicon.png          | Bin 886 -> 4242 bytes
+ src/static/images/vaultwarden-icon.png             | Bin 1459 -> 4346 bytes
+ src/static/scripts/admin_users.js                  |  16 +-
+ src/static/templates/404.hbs                       |  18 +-
+ src/static/templates/admin/base.hbs                |   6 +-
+ src/static/templates/admin/login.hbs               |  11 +-
+ src/static/templates/admin/users.hbs               |  34 +-
+ src/static/templates/email/change_email.hbs        |   2 +-
+ src/static/templates/email/change_email.html.hbs   |   2 +-
+ src/static/templates/email/email_footer.hbs        |  27 +-
+ src/static/templates/email/email_footer_text.hbs   |   2 +-
+ src/static/templates/email/email_header.hbs        | 140 +++--
+ src/static/templates/email/invite_accepted.hbs     |   2 +-
+ .../templates/email/invite_accepted.html.hbs       |  29 +-
+ src/static/templates/email/invite_confirmed.hbs    |   2 +-
+ .../templates/email/invite_confirmed.html.hbs      |   5 +-
+ src/static/templates/email/protected_action.hbs    |   4 +-
+ .../templates/email/protected_action.html.hbs      |   4 +-
+ src/static/templates/email/smtp_test.hbs           |   2 +-
+ src/static/templates/email/smtp_test.html.hbs      |  19 +-
+ src/static/templates/email/twofactor_email.hbs     |   4 +-
+ .../templates/email/twofactor_email.html.hbs       |  11 +-
+ src/static/templates/scss/vaultwarden.scss.hbs     |   7 +
+ src/util.rs                                        |  44 +-
+ 63 files changed, 2445 insertions(+), 228 deletions(-)
